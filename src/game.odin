@@ -35,6 +35,7 @@ SessionData :: struct {
     debug_mode: bool,
     enemy_texture: raylib.Texture2D,
     floor_texture: raylib.Texture2D,
+    circle_texture: raylib.Texture2D,
 }
 
 Player :: struct {
@@ -131,6 +132,7 @@ init_game :: proc() {
         debug_mode = false,
         enemy_texture = raylib.LoadTexture("assets/sprites/FireSpellsEffects.png"),
         floor_texture = raylib.LoadTexture("assets/sprites/TextureAtlas.png"),
+        circle_texture = raylib.LoadTexture("assets/sprites/MagicArea.png"),
     }
 
     raylib.SetTextureFilter(session_game_data.enemy_texture, .POINT)
@@ -365,7 +367,8 @@ draw_game :: proc() {
     screen_width: f32 = f32(raylib.GetScreenWidth())
     screen_height: f32 = f32(raylib.GetScreenHeight())
 
-    if game_state == .Playing || game_state == .Paused || game_state == .Game_Over {
+    // Draw Grass Tiles
+    if game_state == .Playing {
         TILE_SIZE_ATLAS :: 32
         TILE_SCALE :: 2.0
         RENDER_SIZE: f32 = f32(TILE_SIZE_ATLAS) * TILE_SCALE
@@ -390,99 +393,90 @@ draw_game :: proc() {
         }
     }
 
-    // Draw MainMenu screen
-    {
-        if game_state == .Paused {
-            w := raylib.GetScreenWidth()
-            h := raylib.GetScreenHeight()
-
-            raylib.DrawRectangle(0, 0, w, h, raylib.Fade(raylib.BLACK, 0.8))
-
-            paused_text: cstring= fmt.ctprint("JOGO PAUSADO")
-            paused_text_font_size: i32 = 60
-            paused_text_width: i32 = raylib.MeasureText(paused_text, paused_text_font_size)
-            raylib.DrawText(paused_text, i32(screen_width) / 2 - paused_text_width / 2, i32(screen_height) / 2 - 130, paused_text_font_size, raylib.WHITE)
-
-            continue_text: cstring= fmt.ctprint("[C] CONTINUAR")
-            continue_text_font_size: i32 = 30
-            continue_text_width: i32 = raylib.MeasureText(continue_text, continue_text_font_size)
-            raylib.DrawText(continue_text, i32(screen_width) / 2 - continue_text_width / 2, i32(screen_height) / 2, continue_text_font_size, raylib.LIGHTGRAY)
-
-            quit_text: cstring= fmt.ctprint("[Q] SAIR DO JOGO")
-            quit_text_font_size: i32 = 30
-            quit_text_width: i32 = raylib.MeasureText(quit_text, quit_text_font_size)
-            raylib.DrawText(quit_text, i32(screen_width) / 2 - quit_text_width / 2, i32(screen_height) / 2 + 50, quit_text_font_size, raylib.LIGHTGRAY)
-
-        }
-
-        if game_state == .Main_Menu {
-            if !session_game_data.ready_to_show {
-                raylib.ClearBackground(raylib.BLACK)
-            } else if session_game_data.initial_logos_index == 0 {
-                raylib.ClearBackground(raylib.BLACK)
-                odin_logo_text: cstring = "MADE WITH ODIN"
-                odin_logo_text_font_size: i32 = 30
-                odin_logo_text_width: i32 = raylib.MeasureText(odin_logo_text, odin_logo_text_font_size) 
-                raylib.DrawText(odin_logo_text, i32(screen_width / 2) - odin_logo_text_width / 2, i32(screen_height / 2), odin_logo_text_font_size, raylib.WHITE)
-            } else if session_game_data.initial_logos_index == 1 {
-                raylib.ClearBackground(raylib.BLACK)
-                mussaranho_logo_text: cstring = "MUSSARANHO STUDIOS"
-                mussaranho_logo_text_font_size: i32 = 30
-                mussaranho_logo_text_width: i32 = raylib.MeasureText(mussaranho_logo_text, mussaranho_logo_text_font_size) 
-                raylib.DrawText(mussaranho_logo_text, i32(screen_width / 2) - mussaranho_logo_text_width / 2, i32(screen_height / 2), mussaranho_logo_text_font_size, raylib.WHITE)
-            } else {
-                raylib.ClearBackground(raylib.DARKBLUE)
-
-                if raylib.IsKeyPressed(.ESCAPE) do raylib.CloseWindow()
-            
-                // Game Title
-                title_text := "MAGO MUSSARANHO"
-                title_text_font_size: i32 = 130
-                title_text_width := raylib.MeasureText(fmt.ctprintf(title_text), title_text_font_size)
-                raylib.DrawText(fmt.ctprintf(title_text), i32(screen_width) / 2 - title_text_width / 2, i32(screen_height) / 2 - 160, title_text_font_size, raylib.WHITE)
-
-                // Blinking subtitle instruction text
-                if i32(raylib.GetTime() * 2) % 2 == 0 {
-                    subtitle_text := "Pressione Enter para começar"
-                    subtitle_text_font_size: i32 = 25
-                    subtitle_text_width := raylib.MeasureText(fmt.ctprintf(subtitle_text), subtitle_text_font_size)
-                    raylib.DrawText(fmt.ctprintf(subtitle_text), i32(screen_width) / 2 - subtitle_text_width / 2, i32(screen_height) / 2 + 20, subtitle_text_font_size, raylib.LIGHTGRAY)
-                }
-
-                exit_text: cstring = fmt.ctprintf("Pressione ESC para sair")
-                exit_text_font_size: i32 = 18
-                exit_text_width: i32 = raylib.MeasureText(exit_text, exit_text_font_size)
-                raylib.DrawText(exit_text, i32(screen_width) / 2 - exit_text_width / 2, i32(screen_height) / 2 + 100, exit_text_font_size, raylib.LIGHTGRAY)
-
-                // Fade in effect in the first 2 seconds 
-                if session_game_data.intro_fade_timer > 0 {
-                    alpha: f32 = clamp(session_game_data.intro_fade_timer / 3.0, 0.0, 1.0)
-                    raylib.DrawRectangle(-1000, -1000, 5000, 5000, raylib.Fade(raylib.BLACK, alpha))
-                }
-            }
-        }
-    }
-
     // Game Draw
-    if game_state == .Playing || game_state == .Game_Over {
+    if game_state == .Playing {
+
         // Draw ConquestZone
         {
             zone: ConquestZone = session_game_data.center_zone
-            zone_color := zone.active ? raylib.GREEN : raylib.DARKGRAY
+            tex: raylib.Texture2D = session_game_data.circle_texture
+
+            full_dest_rec := raylib.Rectangle{
+                x = zone.pos.x,
+                y = zone.pos.y,
+                width = zone.radius * 2,
+                height = zone.radius * 2,
+            }
+
+            origin := raylib.Vector2{ full_dest_rec.width / 2, full_dest_rec.height / 2 }
+
+            source_rec := raylib.Rectangle{
+                x = 0,
+                y = 0,
+                width = f32(tex.width),
+                height = f32(tex.height)                
+            }
+
+            raylib.DrawTexturePro(tex, source_rec, full_dest_rec, origin, 0, raylib.Fade(raylib.BLACK, 0.4))
+
+            if zone.progress > 0 {
+                progress_dest_rec := raylib.Rectangle{
+                    x = zone.pos.x,
+                    y = zone.pos.y,
+                    width = full_dest_rec.width * zone.progress,
+                    height = full_dest_rec.height * zone.progress,
+                }
+                
+                progress_origin := raylib.Vector2{ progress_dest_rec.width / 2, progress_dest_rec.height / 2 }
     
+                color_tint := zone.active ? raylib.WHITE : raylib.LIGHTGRAY
+    
+                raylib.DrawTexturePro(tex, source_rec, progress_dest_rec, progress_origin, 0, color_tint)
+            }
+
+
+
+            // base_alpha: f32 = zone.active ? 0.6 + (zone.progress * 0.4) : 0.4
+            // zone_color := raylib.Fade(raylib.WHITE, base_alpha)
+
+            // source_rec := raylib.Rectangle{
+            //     x = 0,
+            //     y = 0,
+            //     width = f32(tex.width),
+            //     height = f32(tex.height), 
+            // }
+
+            // dest_rec_bg := raylib.Rectangle{
+            //     x = zone.pos.x, 
+            //     y = zone.pos.y,
+            //     width = zone.radius * 2,
+            //     height = zone.radius * 2, 
+            // }
+
+            // raylib.DrawTexturePro(tex, source_rec, dest_rec_bg, origin, 0, raylib.Fade(raylib.WHITE, 0.1))
+
+            // dest_rec_progress := raylib.Rectangle{
+            //     x = zone.pos.x,
+            //     y = zone.pos.y,
+            //     width = (zone.radius * 2) * zone.progress,
+            //     height = (zone.radius * 2) * zone.progress,
+            // }
+            
+            // origin_progress := raylib.Vector2{ dest_rec_progress.width / 2, dest_rec_progress.height / 2 }
+
+            // raylib.DrawTexturePro(tex, source_rec, dest_rec_progress, origin_progress, 0, zone_color)
+
+
             // Draw external circle line (the limit line)
-            raylib.DrawCircleLinesV(zone.pos, zone.radius, zone_color)
-    
+            //raylib.DrawCircleLinesV(zone.pos, zone.radius, zone_color)
             // Draw the circle color inside fill
-            raylib.DrawCircleV(zone.pos, zone.radius * zone.progress, raylib.Fade(zone_color, 0.4))
-    
+            //raylib.DrawCircleV(zone.pos, zone.radius * zone.progress, raylib.Fade(zone_color, 0.4))
             // Thin line showing better the progress
-            raylib.DrawCircleLinesV(zone.pos, zone.radius * zone.progress, zone_color)
+            //raylib.DrawCircleLinesV(zone.pos, zone.radius * zone.progress, zone_color)
         }
     
         // Draw Player
         {
-            // raylib.DrawCircleV(player.pos, player.radius, raylib.WHITE)
             active_tex := player.is_running ? player.texture_run : player.texture_idle
             frame_height := f32(active_tex.height) / 6
             source_rec := raylib.Rectangle {
@@ -595,8 +589,32 @@ draw_game :: proc() {
         }
         
     }
-    
-    // Draw Game Over screen
+
+    // Draw PauseMenu Overlay 
+    if game_state == .Paused {
+        w := raylib.GetScreenWidth()
+        h := raylib.GetScreenHeight()
+
+        raylib.DrawRectangle(0, 0, i32(screen_width), i32(screen_height), raylib.Fade(raylib.BLACK, 0.8))
+
+        paused_text: cstring= fmt.ctprint("JOGO PAUSADO")
+        paused_text_font_size: i32 = 60
+        paused_text_width: i32 = raylib.MeasureText(paused_text, paused_text_font_size)
+        raylib.DrawText(paused_text, i32(screen_width) / 2 - paused_text_width / 2, i32(screen_height) / 2 - 130, paused_text_font_size, raylib.WHITE)
+
+        continue_text: cstring= fmt.ctprint("[C] CONTINUAR")
+        continue_text_font_size: i32 = 30
+        continue_text_width: i32 = raylib.MeasureText(continue_text, continue_text_font_size)
+        raylib.DrawText(continue_text, i32(screen_width) / 2 - continue_text_width / 2, i32(screen_height) / 2, continue_text_font_size, raylib.LIGHTGRAY)
+
+        quit_text: cstring= fmt.ctprint("[Q] SAIR DO JOGO")
+        quit_text_font_size: i32 = 30
+        quit_text_width: i32 = raylib.MeasureText(quit_text, quit_text_font_size)
+        raylib.DrawText(quit_text, i32(screen_width) / 2 - quit_text_width / 2, i32(screen_height) / 2 + 50, quit_text_font_size, raylib.LIGHTGRAY)
+
+    }
+
+    // Draw GameOver Overlay
     {
         if game_state == .Game_Over {
             w := raylib.GetScreenWidth()
@@ -627,6 +645,54 @@ draw_game :: proc() {
         }
     }
 
+    // Draw MainMenu
+    if game_state == .Main_Menu {
+        if !session_game_data.ready_to_show {
+            raylib.ClearBackground(raylib.BLACK)
+        } else if session_game_data.initial_logos_index == 0 {
+            raylib.ClearBackground(raylib.BLACK)
+            odin_logo_text: cstring = "MADE WITH ODIN"
+            odin_logo_text_font_size: i32 = 30
+            odin_logo_text_width: i32 = raylib.MeasureText(odin_logo_text, odin_logo_text_font_size) 
+            raylib.DrawText(odin_logo_text, i32(screen_width / 2) - odin_logo_text_width / 2, i32(screen_height / 2), odin_logo_text_font_size, raylib.WHITE)
+        } else if session_game_data.initial_logos_index == 1 {
+            raylib.ClearBackground(raylib.BLACK)
+            mussaranho_logo_text: cstring = "MUSSARANHO STUDIOS"
+            mussaranho_logo_text_font_size: i32 = 30
+            mussaranho_logo_text_width: i32 = raylib.MeasureText(mussaranho_logo_text, mussaranho_logo_text_font_size) 
+            raylib.DrawText(mussaranho_logo_text, i32(screen_width / 2) - mussaranho_logo_text_width / 2, i32(screen_height / 2), mussaranho_logo_text_font_size, raylib.WHITE)
+        } else {
+            raylib.ClearBackground(raylib.DARKBLUE)
+
+            if raylib.IsKeyPressed(.ESCAPE) do raylib.CloseWindow()
+        
+            // Game Title
+            title_text := "MAGO MUSSARANHO"
+            title_text_font_size: i32 = 130
+            title_text_width := raylib.MeasureText(fmt.ctprintf(title_text), title_text_font_size)
+            raylib.DrawText(fmt.ctprintf(title_text), i32(screen_width) / 2 - title_text_width / 2, i32(screen_height) / 2 - 160, title_text_font_size, raylib.WHITE)
+
+            // Blinking subtitle instruction text
+            if i32(raylib.GetTime() * 2) % 2 == 0 {
+                subtitle_text := "Pressione Enter para começar"
+                subtitle_text_font_size: i32 = 25
+                subtitle_text_width := raylib.MeasureText(fmt.ctprintf(subtitle_text), subtitle_text_font_size)
+                raylib.DrawText(fmt.ctprintf(subtitle_text), i32(screen_width) / 2 - subtitle_text_width / 2, i32(screen_height) / 2 + 20, subtitle_text_font_size, raylib.LIGHTGRAY)
+            }
+
+            exit_text: cstring = fmt.ctprintf("Pressione ESC para sair")
+            exit_text_font_size: i32 = 18
+            exit_text_width: i32 = raylib.MeasureText(exit_text, exit_text_font_size)
+            raylib.DrawText(exit_text, i32(screen_width) / 2 - exit_text_width / 2, i32(screen_height) / 2 + 100, exit_text_font_size, raylib.LIGHTGRAY)
+
+            // Fade in effect in the first 2 seconds 
+            if session_game_data.intro_fade_timer > 0 {
+                alpha: f32 = clamp(session_game_data.intro_fade_timer / 3.0, 0.0, 1.0)
+                raylib.DrawRectangle(-1000, -1000, 5000, 5000, raylib.Fade(raylib.BLACK, alpha))
+            }
+        }
+    }
+    
     raylib.EndDrawing()
 }
 
