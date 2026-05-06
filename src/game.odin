@@ -34,6 +34,7 @@ SessionData :: struct {
     initial_logos_index: int,
     debug_mode: bool,
     enemy_texture: raylib.Texture2D,
+    floor_texture: raylib.Texture2D,
 }
 
 Player :: struct {
@@ -128,7 +129,8 @@ init_game :: proc() {
         current_enemy_speed = 350.0,
         intro_fade_timer = INTRO_FADE_DURATION,
         debug_mode = false,
-        enemy_texture = raylib.LoadTexture("assets/sprites/FireSpellsEffects.png")
+        enemy_texture = raylib.LoadTexture("assets/sprites/FireSpellsEffects.png"),
+        floor_texture = raylib.LoadTexture("assets/sprites/TextureAtlas.png"),
     }
 
     raylib.SetTextureFilter(session_game_data.enemy_texture, .POINT)
@@ -363,10 +365,38 @@ draw_game :: proc() {
     screen_width: f32 = f32(raylib.GetScreenWidth())
     screen_height: f32 = f32(raylib.GetScreenHeight())
 
+    if game_state == .Playing || game_state == .Paused || game_state == .Game_Over {
+        TILE_SIZE_ATLAS :: 32
+        TILE_SCALE :: 2.0
+        RENDER_SIZE: f32 = f32(TILE_SIZE_ATLAS) * TILE_SCALE
+    
+        source_rec := raylib.Rectangle {
+            x = f32(4 * TILE_SIZE_ATLAS),
+            y = f32(14 * TILE_SIZE_ATLAS),
+            width = TILE_SIZE_ATLAS,
+            height = TILE_SIZE_ATLAS,
+        }
+    
+        for x : f32 = 0; x < screen_width; x += RENDER_SIZE {
+            for y : f32 = 0; y < screen_height; y += RENDER_SIZE {
+                dest_rec := raylib.Rectangle {
+                    x = x,
+                    y = y,
+                    width = RENDER_SIZE,
+                    height = RENDER_SIZE,
+                }
+                raylib.DrawTexturePro(session_game_data.floor_texture, source_rec, dest_rec, {0,0}, 0, raylib.WHITE)
+            }
+        }
+    }
+
     // Draw MainMenu screen
     {
         if game_state == .Paused {
-            raylib.DrawRectangle(0, 0, i32(screen_width), i32(screen_height), raylib.Fade(raylib.BLACK, 0.5))
+            w := raylib.GetScreenWidth()
+            h := raylib.GetScreenHeight()
+
+            raylib.DrawRectangle(0, 0, w, h, raylib.Fade(raylib.BLACK, 0.8))
 
             paused_text: cstring= fmt.ctprint("JOGO PAUSADO")
             paused_text_font_size: i32 = 60
@@ -569,8 +599,11 @@ draw_game :: proc() {
     // Draw Game Over screen
     {
         if game_state == .Game_Over {
+            w := raylib.GetScreenWidth()
+            h := raylib.GetScreenHeight()
+
             // Turn Background darker
-            raylib.DrawRectangle(0, 0, i32(screen_width), i32(screen_height), raylib.Fade(raylib.BLACK, 0.8))
+            raylib.DrawRectangle(0, 0, w, h, raylib.Fade(raylib.BLACK, 0.8))
 
             death_msg: string = "VOCE MORREU!"
             death_msg_font_size: i32 = 60 
