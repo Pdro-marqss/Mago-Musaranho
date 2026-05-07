@@ -151,7 +151,8 @@ init_game :: proc() {
 update_game :: proc(dt: f32) {
     // initial sync. Only starts to count when window is focused and fullscreen active
     if !session_game_data.ready_to_show {
-        if raylib.IsWindowFocused() && raylib.IsWindowFullscreen() {
+        // if raylib.IsWindowFocused() && raylib.IsWindowFullscreen() {
+        if raylib.IsWindowReady() {
             session_game_data.ready_to_show_timer += dt
             if session_game_data.ready_to_show_timer > 3.0 {
                 session_game_data.ready_to_show = true
