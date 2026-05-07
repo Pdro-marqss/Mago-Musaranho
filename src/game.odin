@@ -173,7 +173,7 @@ update_game :: proc(dt: f32) {
         }
 
         if game_state == .Main_Menu {
-            if raylib.IsKeyPressed(.ENTER) || raylib.IsKeyPressed(.SPACE) {
+            if raylib.IsKeyPressed(.ENTER) || raylib.IsKeyPressed(.KP_ENTER) {
                 game_state = .Playing
             }
         } else if game_state == .Game_Over {
@@ -351,9 +351,13 @@ update_game :: proc(dt: f32) {
                 }
             }
         } else if game_state == .Paused {
-            if raylib.IsKeyPressed(.ESCAPE) do game_state = .Playing
-            if raylib.IsKeyPressed(.C) do game_state = .Playing
+            if raylib.IsKeyPressed(.ESCAPE) || raylib.IsKeyPressed(.C) do game_state = .Playing
+            if raylib.IsKeyPressed(.M) {
+                reset_session();
+                game_state = .Main_Menu
+            }
             if raylib.IsKeyPressed(.Q) do raylib.CloseWindow()
+            
             return
         }
     }
@@ -433,46 +437,6 @@ draw_game :: proc() {
     
                 raylib.DrawTexturePro(tex, source_rec, progress_dest_rec, progress_origin, 0, color_tint)
             }
-
-
-
-            // base_alpha: f32 = zone.active ? 0.6 + (zone.progress * 0.4) : 0.4
-            // zone_color := raylib.Fade(raylib.WHITE, base_alpha)
-
-            // source_rec := raylib.Rectangle{
-            //     x = 0,
-            //     y = 0,
-            //     width = f32(tex.width),
-            //     height = f32(tex.height), 
-            // }
-
-            // dest_rec_bg := raylib.Rectangle{
-            //     x = zone.pos.x, 
-            //     y = zone.pos.y,
-            //     width = zone.radius * 2,
-            //     height = zone.radius * 2, 
-            // }
-
-            // raylib.DrawTexturePro(tex, source_rec, dest_rec_bg, origin, 0, raylib.Fade(raylib.WHITE, 0.1))
-
-            // dest_rec_progress := raylib.Rectangle{
-            //     x = zone.pos.x,
-            //     y = zone.pos.y,
-            //     width = (zone.radius * 2) * zone.progress,
-            //     height = (zone.radius * 2) * zone.progress,
-            // }
-            
-            // origin_progress := raylib.Vector2{ dest_rec_progress.width / 2, dest_rec_progress.height / 2 }
-
-            // raylib.DrawTexturePro(tex, source_rec, dest_rec_progress, origin_progress, 0, zone_color)
-
-
-            // Draw external circle line (the limit line)
-            //raylib.DrawCircleLinesV(zone.pos, zone.radius, zone_color)
-            // Draw the circle color inside fill
-            //raylib.DrawCircleV(zone.pos, zone.radius * zone.progress, raylib.Fade(zone_color, 0.4))
-            // Thin line showing better the progress
-            //raylib.DrawCircleLinesV(zone.pos, zone.radius * zone.progress, zone_color)
         }
     
         // Draw Player
@@ -600,17 +564,22 @@ draw_game :: proc() {
         paused_text: cstring= fmt.ctprint("JOGO PAUSADO")
         paused_text_font_size: i32 = 60
         paused_text_width: i32 = raylib.MeasureText(paused_text, paused_text_font_size)
-        raylib.DrawText(paused_text, i32(screen_width) / 2 - paused_text_width / 2, i32(screen_height) / 2 - 130, paused_text_font_size, raylib.WHITE)
+        raylib.DrawText(paused_text, i32(screen_width) / 2 - paused_text_width / 2, i32(screen_height) / 2 - 150, paused_text_font_size, raylib.WHITE)
 
         continue_text: cstring= fmt.ctprint("[C] CONTINUAR")
         continue_text_font_size: i32 = 30
         continue_text_width: i32 = raylib.MeasureText(continue_text, continue_text_font_size)
-        raylib.DrawText(continue_text, i32(screen_width) / 2 - continue_text_width / 2, i32(screen_height) / 2, continue_text_font_size, raylib.LIGHTGRAY)
+        raylib.DrawText(continue_text, i32(screen_width) / 2 - continue_text_width / 2, i32(screen_height) / 2 - 20, continue_text_font_size, raylib.LIGHTGRAY)
+
+        main_menu_text: cstring= fmt.ctprint("[M] MENU PRINCIPAL")
+        main_menu_text_font_size: i32 = 30
+        main_menu_text_width: i32 = raylib.MeasureText(main_menu_text, main_menu_text_font_size)
+        raylib.DrawText(main_menu_text, i32(screen_width) / 2 - main_menu_text_width / 2, i32(screen_height) / 2 + 30, main_menu_text_font_size, raylib.LIGHTGRAY)
 
         quit_text: cstring= fmt.ctprint("[Q] SAIR DO JOGO")
         quit_text_font_size: i32 = 30
         quit_text_width: i32 = raylib.MeasureText(quit_text, quit_text_font_size)
-        raylib.DrawText(quit_text, i32(screen_width) / 2 - quit_text_width / 2, i32(screen_height) / 2 + 50, quit_text_font_size, raylib.LIGHTGRAY)
+        raylib.DrawText(quit_text, i32(screen_width) / 2 - quit_text_width / 2, i32(screen_height) / 2 + 80, quit_text_font_size, raylib.LIGHTGRAY)
 
     }
 
@@ -740,4 +709,12 @@ deinit_game :: proc() {
     enemies = nil
 
     fmt.println("Memória limpa com sucesso. Até logo, Mago!")
+}
+
+// helpers
+draw_centered_text :: proc(text: string, y: i32, size: i32, color: raylib.Color) {
+    c_str := fmt.ctprintf(text)
+    width := raylib.MeasureText(c_str, size)
+    screen_w := raylib.GetScreenWidth()
+    raylib.DrawText(c_str, screen_w / 2 - width / 2, y, size, color)
 }
