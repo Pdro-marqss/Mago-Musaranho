@@ -47,7 +47,13 @@ Player :: struct {
     current_frame: int,
     frame_timer: f32,
     is_running: bool,
-    facing_right: bool
+    facing_right: bool,
+    shield_active: bool,
+    shield_timer: f32,
+    shield_cooldown: f32,
+    shield_texture: raylib.Texture2D,
+    shield_frame: int,
+    shield_animation_timer: f32,
 }
 
 Enemy :: struct {
@@ -73,6 +79,8 @@ session_game_data: SessionData
 game_state: GameState
 
 INTRO_FADE_DURATION :: 4.0
+SHIELD_DURATION :: 3.0
+SHIELD_COOLDOWN :: 4.0
 
 // Reset sessionData 
 reset_session :: proc() {
@@ -111,7 +119,11 @@ init_game :: proc() {
         current_frame = 0,
         frame_timer = 0,
         is_running = false,
-        facing_right = true
+        facing_right = true,
+        shield_texture = raylib.LoadTexture("assets/sprites/RatSpellsAtlas.png"),
+        shield_active = false,
+        shield_timer = 0,
+        shield_cooldown = 0,
     }
 
     // Default Game Session configs
@@ -197,6 +209,37 @@ update_game :: proc(dt: f32) {
                 fmt.printf("Debug Mode: %v\n", session_game_data.debug_mode)
             }
 
+            // spell shield
+            {
+                if raylib.IsKeyPressed(.SPACE) && player.shield_cooldown <= 0 {
+                    player.shield_active = true
+                    player.shield_timer = SHIELD_DURATION
+                    player.shield_cooldown = SHIELD_COOLDOWN
+                }
+    
+                if player.shield_cooldown > 0 {
+                    player.shield_cooldown -= dt
+                }
+
+                if player.shield_active {
+                    player.shield_timer -= dt
+                    
+                    if player.shield_timer <= 0 {
+                        player.shield_active = false
+                    }
+
+                    // shield animation (atlas 15x14 = 210 frames)
+                    player.shield_animation_timer += dt
+                    animation_velocity:f32 = 0.08
+                    if player.shield_animation_timer > animation_velocity {
+                        player.shield_animation_timer = 0
+                        player.shield_frame += 1
+
+                        if player.shield_frame >= 6 do player.shield_frame = 0
+                    }
+                }
+            }
+
             // Player movement
             player.is_running = false
 
@@ -275,9 +318,10 @@ update_game :: proc(dt: f32) {
             // Enemies
             {
                 // Movement and Collision
-                for &enemy in enemies {
+                for i := 0; i < len(enemies); {
+                    enemy := &enemies[i]
                     enemy.pos += enemy.vel * dt
-            
+
                     // Fire Animation frame control
                     enemy.frame_timer += dt
                     fire_animation_velocity:f32 = 0.1
@@ -296,17 +340,32 @@ update_game :: proc(dt: f32) {
                     direction := raylib.Vector2Normalize(enemy.vel)
                     hitbox_center:[2]f32 = enemy.pos + (direction * 15.0)
                     hitbox_radius: f32 = 12.0
+                    collision_radius := player.shield_active ? player.radius * 1.8 : player.radius
 
-                    if raylib.CheckCollisionCircles(player.pos, player.radius, hitbox_center, hitbox_radius) {
-                        session_game_data.deaths += 1
-                        
-                        if session_game_data.score > session_game_data.high_score {
-                            session_game_data.high_score = session_game_data.score
-                            save_highscore(session_game_data.high_score)
+                    if raylib.CheckCollisionCircles(player.pos, collision_radius, hitbox_center, hitbox_radius) {
+                        if player.shield_active {
+                            ordered_remove(&enemies, i)
+                            continue
+                        } else {
+                            session_game_data.deaths += 1
+                            
+                            if session_game_data.score > session_game_data.high_score {
+                                session_game_data.high_score = session_game_data.score
+                                save_highscore(session_game_data.high_score)
+                            }
+            
+                            game_state = .Game_Over
+                            break
                         }
-        
-                        game_state = .Game_Over
                     }
+
+                    // Clear enemies from screen and memory
+                    if enemy.pos.x < -100 || enemy.pos.x > screen_width + 100 || enemy.pos.y < -100 || enemy.pos.y > screen_height + 100{
+                        ordered_remove(&enemies, i)
+                        continue
+                    }
+
+                    i += 1
                 } 
         
                 // Spawn
@@ -332,15 +391,6 @@ update_game :: proc(dt: f32) {
         
                     append(&enemies, new_enemy)
                     session_game_data.enemy_spawn_timer = 0
-                }
-        
-                // Clear enemies from screen and memory
-                for i := 0; i < len(enemies); {
-                    if enemies[i].pos.x < -100 || enemies[i].pos.x > screen_width + 100 || enemies[i].pos.y < -100 || enemies[i].pos.y > screen_height + 100 {
-                        ordered_remove(&enemies, i)
-                    } else {
-                        i += 1
-                    }
                 }
             }
         
@@ -471,6 +521,35 @@ draw_game :: proc() {
                 raylib.DrawCircleLinesV(player.pos, player.radius, raylib.LIME)
 
                 raylib.DrawCircle(i32(session_game_data.center_zone.pos.x), i32(session_game_data.center_zone.pos.y), 5, raylib.YELLOW)
+            }
+        }
+
+        // Draw Spell Shield
+        {
+            if player.shield_active {
+                tex := player.shield_texture
+
+                frame_size: f32 = 64.0
+                spell_line_target: f32 = 7.0
+
+                source_rec := raylib.Rectangle {
+                    x = f32(player.shield_frame) * frame_size,
+                    y = spell_line_target * frame_size,
+                    width = frame_size,
+                    height = frame_size,
+                }
+
+                shield_scale: f32 = 2.5
+                dest_rec := raylib.Rectangle {
+                    x = player.pos.x,
+                    y = player.pos.y,
+                    width = frame_size * shield_scale,
+                    height = frame_size * shield_scale,
+                }
+
+                origin := raylib.Vector2{ dest_rec.width / 2, dest_rec.height / 2 }
+
+                raylib.DrawTexturePro(tex, source_rec, dest_rec, origin, 0, raylib.WHITE)
             }
         }
         
