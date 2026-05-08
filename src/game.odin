@@ -54,6 +54,9 @@ Player :: struct {
     shield_texture: raylib.Texture2D,
     shield_frame: int,
     shield_animation_timer: f32,
+    skill_icons_atlas_texture: raylib.Texture2D,
+    frame_texture: raylib.Texture2D,
+    key_e_texture: raylib.Texture2D,
 }
 
 Enemy :: struct {
@@ -79,8 +82,8 @@ session_game_data: SessionData
 game_state: GameState
 
 INTRO_FADE_DURATION :: 4.0
-SHIELD_DURATION :: 3.0
-SHIELD_COOLDOWN :: 4.0
+SHIELD_DURATION :: 4.0
+SHIELD_COOLDOWN :: 10.0
 
 // Reset sessionData 
 reset_session :: proc() {
@@ -98,6 +101,9 @@ reset_session :: proc() {
     clear(&enemies)
 
     player.pos = { screen_width / 2, screen_height / 2 }
+    player.shield_active = false
+    player.shield_timer = 0
+    player.shield_cooldown = 0
 }
 
 
@@ -124,6 +130,9 @@ init_game :: proc() {
         shield_active = false,
         shield_timer = 0,
         shield_cooldown = 0,
+        skill_icons_atlas_texture = raylib.LoadTexture("assets/sprites/SkillsIcons.png"),
+        frame_texture = raylib.LoadTexture("assets/sprites/SkillFrame.png"),
+        key_e_texture = raylib.LoadTexture("assets/sprites/keysIcons/keyboard_e_outline.png"),
     }
 
     // Default Game Session configs
@@ -211,7 +220,7 @@ update_game :: proc(dt: f32) {
 
             // spell shield
             {
-                if raylib.IsKeyPressed(.SPACE) && player.shield_cooldown <= 0 {
+                if raylib.IsKeyPressed(.E) && player.shield_cooldown <= 0 {
                     player.shield_active = true
                     player.shield_timer = SHIELD_DURATION
                     player.shield_cooldown = SHIELD_COOLDOWN
@@ -446,6 +455,8 @@ draw_game :: proc() {
                 raylib.DrawTexturePro(session_game_data.floor_texture, source_rec, dest_rec, {0,0}, 0, raylib.WHITE)
             }
         }
+
+        raylib.DrawRectangle(0, 0, i32(screen_width), i32(screen_height) + 1000, raylib.Fade(raylib.BLACK, 0.4))
     }
 
     // Game Draw
@@ -596,6 +607,62 @@ draw_game :: proc() {
                     raylib.DrawCircleLinesV(hitbox_center, 12.0, raylib.BLUE)
                     raylib.DrawPixelV(enemy.pos, raylib.YELLOW)
                 }
+            }
+        }
+
+        // Draw Spells HUD
+        {   
+            base_size: f32 = 90.0  // Aumentado de 64 para 90 para maior visibilidade
+            margem_moldura: f32 = 12.0
+            
+            hud_x := f32(raylib.GetScreenWidth()) / 2 - (base_size / 2)
+            hud_y := f32(raylib.GetScreenHeight()) - 120 // Um pouco mais alto por ser maior
+
+            // 1. Ícone
+            dest_rect := raylib.Rectangle{ hud_x, hud_y, base_size, base_size }
+            raylib.DrawTexturePro(player.skill_icons_atlas_texture, {0,0,32,32}, dest_rect, {0,0}, 0, raylib.WHITE)
+
+            // 2. Máscara de Cooldown (Sombra)
+            if player.shield_cooldown > 0 {
+                percentage := player.shield_cooldown / 8.0 
+                mask_rect := raylib.Rectangle{ hud_x, hud_y, base_size, base_size * percentage }
+                raylib.DrawRectangleRec(mask_rect, raylib.Fade(raylib.BLACK, 0.7))
+            }
+
+            // 3. Moldura
+            dest_moldura := raylib.Rectangle{ 
+                hud_x - margem_moldura/2, 
+                hud_y - margem_moldura/2, 
+                base_size + margem_moldura, 
+                base_size + margem_moldura,
+            }
+            raylib.DrawTexturePro(player.frame_texture, {0,0,f32(player.frame_texture.width), f32(player.frame_texture.height)}, dest_moldura, {0,0}, 0, raylib.WHITE)
+
+            // 4. Tecla [E] com fundo preto para contraste
+            tecla_size : f32 = 32.0
+            tecla_x := hud_x + base_size - (tecla_size / 1.5)
+            tecla_y := hud_y + base_size - (tecla_size / 1.5)
+            
+            // Quadrado preto de fundo
+            raylib.DrawRectangleRec({tecla_x, tecla_y, tecla_size, tecla_size}, raylib.BLACK)
+            // A Tecla
+            raylib.DrawTexturePro(player.key_e_texture, {0,0,f32(player.key_e_texture.width), f32(player.key_e_texture.height)}, {tecla_x, tecla_y, tecla_size, tecla_size}, {0,0}, 0, raylib.WHITE)
+
+            // --- PARTE 2: TIMER SEGUINDO O RATO ---
+            if player.shield_active {
+                // Texto em azul claro (SkyBlue)
+                // %0.1f mostra apenas uma casa decimal (ex: 2.4)
+                timer_str := raylib.TextFormat("%0.1f", player.shield_timer)
+                
+                // Posiciona o texto acima da cabeça do rato
+                // Subtraímos uns 40-50 pixels do Y do player
+                text_x := i32(player.pos.x) - raylib.MeasureText(timer_str, 20) / 2
+                text_y := i32(player.pos.y) - 60
+                
+                // Desenha uma bordinha preta (sombra) para o texto não sumir no fundo
+                raylib.DrawText(timer_str, text_x + 2, text_y + 2, 20, raylib.BLACK)
+                // Texto principal
+                raylib.DrawText(timer_str, text_x, text_y, 20, raylib.SKYBLUE)
             }
         }
     
@@ -782,7 +849,13 @@ deinit_game :: proc() {
     // liberar memória aqui
     raylib.UnloadTexture(player.texture_idle)
     raylib.UnloadTexture(player.texture_run)
+    raylib.UnloadTexture(player.shield_texture)
+    raylib.UnloadTexture(player.skill_icons_atlas_texture)
+    raylib.UnloadTexture(player.frame_texture)
+    raylib.UnloadTexture(player.key_e_texture)
     raylib.UnloadTexture(session_game_data.enemy_texture)
+    raylib.UnloadTexture(session_game_data.floor_texture)
+    raylib.UnloadTexture(session_game_data.circle_texture)
 
     if enemies != nil do delete(enemies)
 
