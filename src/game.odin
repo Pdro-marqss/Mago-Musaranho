@@ -828,19 +828,21 @@ save_highscore :: proc(score: f32) {
 
 
 load_highscore :: proc() -> f32 {
-    if !os.exists("save.dat") do return 0
-
     data, err := os.read_entire_file_from_path("save.dat", context.allocator)
 
     if err != os.ERROR_NONE {
-        fmt.println("Erro ao ler save.dat: ", err)
+        // probably a new player
         return 0
     }
 
     defer delete(data, context.allocator)
 
-    val, _ := strconv.parse_f32(string(data))
-    
+    val, ok := strconv.parse_f32(string(data))
+    if !ok {
+        fmt.println("Erro ao tentar ler o save... arquivo pode estar corrompido.");
+        return 0
+    }
+
     return val
 }
 
