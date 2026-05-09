@@ -773,17 +773,17 @@ draw_game :: proc() {
             raylib.DrawText(odin_logo_text, i32(screen_width / 2) - odin_logo_text_width / 2, i32(screen_height / 2), odin_logo_text_font_size, raylib.WHITE)
         } else if session_game_data.initial_logos_index == 1 {
             raylib.ClearBackground(raylib.BLACK)
-            mussaranho_logo_text: cstring = "MUSSARANHO STUDIOS"
-            mussaranho_logo_text_font_size: i32 = 30
-            mussaranho_logo_text_width: i32 = raylib.MeasureText(mussaranho_logo_text, mussaranho_logo_text_font_size) 
-            raylib.DrawText(mussaranho_logo_text, i32(screen_width / 2) - mussaranho_logo_text_width / 2, i32(screen_height / 2), mussaranho_logo_text_font_size, raylib.WHITE)
+            musaranho_logo_text: cstring = "MUSARANHO STUDIOS"
+            musaranho_logo_text_font_size: i32 = 30
+            musaranho_logo_text_width: i32 = raylib.MeasureText(musaranho_logo_text, musaranho_logo_text_font_size) 
+            raylib.DrawText(musaranho_logo_text, i32(screen_width / 2) - musaranho_logo_text_width / 2, i32(screen_height / 2), musaranho_logo_text_font_size, raylib.WHITE)
         } else {
             raylib.ClearBackground(raylib.DARKBLUE)
 
             if raylib.IsKeyPressed(.ESCAPE) do raylib.CloseWindow()
         
             // Game Title
-            title_text := "MAGO MUSSARANHO"
+            title_text := "MAGO MUSARANHO"
             title_text_font_size: i32 = 130
             title_text_width := raylib.MeasureText(fmt.ctprintf(title_text), title_text_font_size)
             raylib.DrawText(fmt.ctprintf(title_text), i32(screen_width) / 2 - title_text_width / 2, i32(screen_height) / 2 - 160, title_text_font_size, raylib.WHITE)
