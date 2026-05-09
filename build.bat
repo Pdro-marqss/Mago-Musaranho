@@ -1,5 +1,7 @@
+:: Arquivo sem uso. Todo o processo foi feito no tasks.json
+
 @echo off
-echo Compilando Dodge Master...
+echo Compilando Mago Musaranho...
 
 :: Cria a pasta de build se ela nao existir
 if not exist "dist" mkdir "dist"

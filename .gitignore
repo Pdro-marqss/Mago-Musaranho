@@ -2,6 +2,7 @@
 # Ignora a pasta de build que você mencionou
 dodge_master_build/
 mago_mussaranho_build/
+build/
 # Ignora qualquer executável .exe na raiz (caso você compile fora da pasta)
 *.exe
 # Ignora arquivos de depuração/símbolos do Windows
