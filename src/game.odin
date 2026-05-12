@@ -656,13 +656,13 @@ draw_game :: proc() {
                 
                 // Posiciona o texto acima da cabeça do rato
                 // Subtraímos uns 40-50 pixels do Y do player
-                text_x := i32(player.pos.x) - raylib.MeasureText(timer_str, 20) / 2
-                text_y := i32(player.pos.y) - 60
+                text_x := i32(player.pos.x) - raylib.MeasureText(timer_str, 22) / 2
+                text_y := i32(player.pos.y) - 90
                 
                 // Desenha uma bordinha preta (sombra) para o texto não sumir no fundo
-                raylib.DrawText(timer_str, text_x + 2, text_y + 2, 20, raylib.BLACK)
+                raylib.DrawText(timer_str, text_x + 2, text_y + 2, 22, raylib.BLACK)
                 // Texto principal
-                raylib.DrawText(timer_str, text_x, text_y, 20, raylib.SKYBLUE)
+                raylib.DrawText(timer_str, text_x, text_y, 22, raylib.SKYBLUE)
             }
         }
     
@@ -684,7 +684,7 @@ draw_game :: proc() {
                     points_fade_text_pos_x, 
                     points_fade_text_pos_y, 
                     points_fade_text_font_size, 
-                    raylib.Fade(raylib.GREEN, session_game_data.points_fade_text_alpha)
+                    raylib.Fade(raylib.WHITE, session_game_data.points_fade_text_alpha)
                 )
             }
     
