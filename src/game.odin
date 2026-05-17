@@ -36,6 +36,7 @@ SessionData :: struct {
     enemy_texture: raylib.Texture2D,
     floor_texture: raylib.Texture2D,
     circle_texture: raylib.Texture2D,
+    main_menu_background:raylib.Texture2D,
 }
 
 Player :: struct {
@@ -154,6 +155,7 @@ init_game :: proc() {
         enemy_texture = raylib.LoadTexture("assets/sprites/FireSpellsEffects.png"),
         floor_texture = raylib.LoadTexture("assets/sprites/TextureAtlas.png"),
         circle_texture = raylib.LoadTexture("assets/sprites/MagicArea.png"),
+        main_menu_background = raylib.LoadTexture("assets/sprites/MainMenuBg.jpg"),
     }
 
     raylib.SetTextureFilter(session_game_data.enemy_texture, .POINT)
@@ -778,28 +780,54 @@ draw_game :: proc() {
             musaranho_logo_text_width: i32 = raylib.MeasureText(musaranho_logo_text, musaranho_logo_text_font_size) 
             raylib.DrawText(musaranho_logo_text, i32(screen_width / 2) - musaranho_logo_text_width / 2, i32(screen_height / 2), musaranho_logo_text_font_size, raylib.WHITE)
         } else {
-            raylib.ClearBackground(raylib.DARKBLUE)
+            raylib.ClearBackground(raylib.BLACK)
 
             if raylib.IsKeyPressed(.ESCAPE) do raylib.CloseWindow()
-        
+
+            // Draw main menu Background image
+            {
+                backgroundMenuTex := session_game_data.main_menu_background
+                
+                // Actual backgroundMenu texture size
+                source_rec := raylib.Rectangle {
+                    x = 0,
+                    y = 0,
+                    width = f32(backgroundMenuTex.width),
+                    height = f32(backgroundMenuTex.height),
+                }
+            
+                // Actual screen size
+                dest_rec := raylib.Rectangle{
+                    x = 0,
+                    y = 0,
+                    width = screen_width,
+                    height = screen_height,
+                }
+    
+                raylib.DrawTexturePro(backgroundMenuTex, source_rec, dest_rec, {0,0}, 0, raylib.WHITE)
+            }
+
             // Game Title
             title_text := "MAGO MUSARANHO"
             title_text_font_size: i32 = 130
             title_text_width := raylib.MeasureText(fmt.ctprintf(title_text), title_text_font_size)
-            raylib.DrawText(fmt.ctprintf(title_text), i32(screen_width) / 2 - title_text_width / 2, i32(screen_height) / 2 - 160, title_text_font_size, raylib.WHITE)
+            title_text_pos_y: i32 = 250
+            raylib.DrawText(fmt.ctprintf(title_text), i32(screen_width) / 2 - title_text_width / 2, title_text_pos_y, title_text_font_size, raylib.WHITE)
 
             // Blinking subtitle instruction text
             if i32(raylib.GetTime() * 2) % 2 == 0 {
                 subtitle_text := "Pressione Enter para começar"
                 subtitle_text_font_size: i32 = 25
                 subtitle_text_width := raylib.MeasureText(fmt.ctprintf(subtitle_text), subtitle_text_font_size)
-                raylib.DrawText(fmt.ctprintf(subtitle_text), i32(screen_width) / 2 - subtitle_text_width / 2, i32(screen_height) / 2 + 20, subtitle_text_font_size, raylib.LIGHTGRAY)
+                subtitle_text_pos_y: i32 = title_text_pos_y + title_text_font_size + 40 
+                raylib.DrawText(fmt.ctprintf(subtitle_text), i32(screen_width) / 2 - subtitle_text_width / 2, subtitle_text_pos_y, subtitle_text_font_size, raylib.LIGHTGRAY)
             }
 
             exit_text: cstring = fmt.ctprintf("Pressione ESC para sair")
             exit_text_font_size: i32 = 18
             exit_text_width: i32 = raylib.MeasureText(exit_text, exit_text_font_size)
-            raylib.DrawText(exit_text, i32(screen_width) / 2 - exit_text_width / 2, i32(screen_height) / 2 + 100, exit_text_font_size, raylib.LIGHTGRAY)
+            exit_text_pos_y: i32 = title_text_pos_y + title_text_font_size + 120 
+            raylib.DrawText(exit_text, i32(screen_width) / 2 - exit_text_width / 2, exit_text_pos_y, exit_text_font_size, raylib.LIGHTGRAY)
 
             // Fade in effect in the first 2 seconds 
             if session_game_data.intro_fade_timer > 0 {
@@ -855,6 +883,7 @@ deinit_game :: proc() {
     raylib.UnloadTexture(player.skill_icons_atlas_texture)
     raylib.UnloadTexture(player.frame_texture)
     raylib.UnloadTexture(player.key_e_texture)
+    raylib.UnloadTexture(session_game_data.main_menu_background)
     raylib.UnloadTexture(session_game_data.enemy_texture)
     raylib.UnloadTexture(session_game_data.floor_texture)
     raylib.UnloadTexture(session_game_data.circle_texture)
