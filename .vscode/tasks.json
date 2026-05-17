@@ -10,7 +10,8 @@
             "command": [
                 "mkdir build/debug -ErrorAction SilentlyContinue;",
                 "robocopy assets build/debug/assets /MIR /NJH /NJS /NDL /NC /NS > $null;",
-                "odin build src -out:build/debug/mago_debug.exe -debug;",
+                "robocopy resources build/debug icon.ico /NJH /NJS > $null;",
+                "odin build src -out:build/debug/mago_debug.exe -debug -resource:resources/resources.rc;",
                 "if ($?) { cd build/debug; ./mago_debug.exe }"
             ],
             "group": "build",
@@ -24,7 +25,8 @@
                 "mkdir build/release -ErrorAction SilentlyContinue;",
                 "robocopy assets build/release/assets /MIR /NJH /NJS /NDL /NC /NS > $null;",
                 "robocopy \"C:/odin/vendor/raylib/windows\" \"build/release\" raylib.dll /NJH /NJS > $null;",
-                "odin build src -out:build/release/mago_musaranho.exe -o:speed -subsystem:windows"
+                "robocopy resources build/release icon.exe /NJH /NJS > $null;",
+                "odin build src -out:build/release/mago_musaranho.exe -o:speed -subsystem:windows -resource:resources/resources.rc"
             ],
             "group": "build"
         }

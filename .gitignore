@@ -3,10 +3,15 @@
 dodge_master_build/
 mago_mussaranho_build/
 build/
+
 # Ignora qualquer executável .exe na raiz (caso você compile fora da pasta)
 *.exe
+
 # Ignora arquivos de depuração/símbolos do Windows
 *.pdb
+
+# Ignora arquivos resources de build
+resources/*.res
 
 # --- Dados do Jogo ---
 # O save.dat não deve ir para o Git, pois cada jogador terá o seu próprio recorde
