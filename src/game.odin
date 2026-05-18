@@ -36,6 +36,9 @@ SessionData :: struct {
     enemy_texture: raylib.Texture2D,
     floor_texture: raylib.Texture2D,
     circle_texture: raylib.Texture2D,
+    circle_frame: f32,
+    circle_total_frames: f32,
+    circle_speed: f32,
     main_menu_background:raylib.Texture2D,
 }
 
@@ -155,9 +158,13 @@ init_game :: proc() {
         enemy_texture = raylib.LoadTexture("assets/sprites/FireSpellsEffects.png"),
         floor_texture = raylib.LoadTexture("assets/sprites/TextureAtlas.png"),
         circle_texture = raylib.LoadTexture("assets/sprites/MagicArea.png"),
+        circle_frame = 0.0,
+        circle_total_frames = 36,
+        circle_speed = 12.0,
         main_menu_background = raylib.LoadTexture("assets/sprites/MainMenuBg.jpg"),
     }
 
+    raylib.SetTextureFilter(session_game_data.circle_texture, .POINT)
     raylib.SetTextureFilter(session_game_data.enemy_texture, .POINT)
 
 
@@ -466,40 +473,46 @@ draw_game :: proc() {
 
         // Draw ConquestZone
         {
-            zone: ConquestZone = session_game_data.center_zone
-            tex: raylib.Texture2D = session_game_data.circle_texture
+            magic_circle_texture := session_game_data.circle_texture
+            magic_circle_total_frames := session_game_data.circle_total_frames
+            magic_circle_frame_width := f32(magic_circle_texture.width) / magic_circle_total_frames
+            magic_circle_frame_height := f32(magic_circle_texture.height)
 
-            full_dest_rec := raylib.Rectangle{
-                x = zone.pos.x,
-                y = zone.pos.y,
-                width = zone.radius * 2,
-                height = zone.radius * 2,
+            //adjust sprite size to conquestZoneRadius size
+            target_width := session_game_data.center_zone.radius * 2.0
+            target_height := session_game_data.center_zone.radius * 2.0
+        
+            dest_rec := raylib.Rectangle{
+                x = session_game_data.center_zone.pos.x,
+                y = session_game_data.center_zone.pos.y,
+                width = target_width,
+                height = target_height
             }
 
-            origin := raylib.Vector2{ full_dest_rec.width / 2, full_dest_rec.height / 2 }
+            origin := raylib.Vector2{ target_width / 2, target_height / 2 }
 
-            source_rec := raylib.Rectangle{
-                x = 0,
+            // Static Magic Circle draw on the ground
+            source_rec_gravura := raylib.Rectangle{
+                x = 35.0 * magic_circle_frame_width,
                 y = 0,
-                width = f32(tex.width),
-                height = f32(tex.height)                
+                width = magic_circle_frame_width,
+                height = magic_circle_frame_height,
             }
 
-            raylib.DrawTexturePro(tex, source_rec, full_dest_rec, origin, 0, raylib.Fade(raylib.BLACK, 0.4))
+            raylib.DrawTexturePro(magic_circle_texture, source_rec_gravura, dest_rec, origin, 0, raylib.Fade(raylib.BLACK, 0.1))
 
-            if zone.progress > 0 {
-                progress_dest_rec := raylib.Rectangle{
-                    x = zone.pos.x,
-                    y = zone.pos.y,
-                    width = full_dest_rec.width * zone.progress,
-                    height = full_dest_rec.height * zone.progress,
-                }
-                
-                progress_origin := raylib.Vector2{ progress_dest_rec.width / 2, progress_dest_rec.height / 2 }
-    
-                color_tint := zone.active ? raylib.WHITE : raylib.LIGHTGRAY
-    
-                raylib.DrawTexturePro(tex, source_rec, progress_dest_rec, progress_origin, 0, color_tint)
+            // Draw conquestZone animation
+            current_frame := i32(session_game_data.center_zone.progress * 35.0)
+
+            source_rec_animacao := raylib.Rectangle{
+                x = f32(current_frame) * magic_circle_frame_width,
+                y = 0,
+                width = magic_circle_frame_width,
+                height = magic_circle_frame_height,
+            }
+
+            if session_game_data.center_zone.progress > 0.0 {
+                raylib.DrawTexturePro(magic_circle_texture, source_rec_animacao, dest_rec, origin, 0, raylib.WHITE)
             }
         }
     
@@ -661,10 +674,41 @@ draw_game :: proc() {
                 text_x := i32(player.pos.x) - raylib.MeasureText(timer_str, 22) / 2
                 text_y := i32(player.pos.y) - 90
                 
-                // Desenha uma bordinha preta (sombra) para o texto não sumir no fundo
-                raylib.DrawText(timer_str, text_x + 2, text_y + 2, 22, raylib.BLACK)
-                // Texto principal
-                raylib.DrawText(timer_str, text_x, text_y, 22, raylib.SKYBLUE)
+                // Draw spellShield timer in numbers
+                {
+                    // Desenha uma bordinha preta (sombra) para o texto não sumir no fundo
+                    // raylib.DrawText(timer_str, text_x + 2, text_y + 2, 22, raylib.BLACK)
+                    // raylib.DrawText(timer_str, text_x + 2, text_y, 22, raylib.BLACK)
+                    // raylib.DrawText(timer_str, text_x - 2, text_y, 22, raylib.BLACK)
+                    // raylib.DrawText(timer_str, text_x, text_y + 2, 22, raylib.BLACK)
+                    // raylib.DrawText(timer_str, text_x, text_y - 2, 22, raylib.BLACK)
+    
+                    // Texto principal
+                    // raylib.DrawText(timer_str, text_x, text_y, 22, raylib.WHITE)
+                }
+
+                // --- BARRA DE PROGRESSO COM OUTLINE ---
+                {
+                    bar_width: f32 = 40.0
+                    bar_height: f32 = 8.0
+                    bar_x := player.pos.x - (bar_width / 2)
+                    bar_y := player.pos.y - 80
+                    outline_thickness: f32 = 3.0 // Grossura da borda
+
+                    // 1. Desenha o Outline (Um retângulo preto maior que fica por baixo)
+                    raylib.DrawRectangleV(
+                        {bar_x - outline_thickness, bar_y - outline_thickness}, 
+                        {bar_width + (outline_thickness * 2), bar_height + (outline_thickness * 2)}, 
+                        raylib.BLACK,
+                    )
+
+                    // 2. Fundo da barrinha (Cinza escuro para mostrar o "vazio" da barra)
+                    raylib.DrawRectangleV({bar_x, bar_y}, {bar_width, bar_height}, raylib.DARKGRAY)
+
+                    // 3. Progresso (Branco)
+                    progress := player.shield_timer / SHIELD_DURATION 
+                    raylib.DrawRectangleV({bar_x, bar_y}, {bar_width * progress, bar_height}, raylib.WHITE)
+                }
             }
         }
     
