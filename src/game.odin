@@ -157,7 +157,7 @@ init_game :: proc() {
         debug_mode = false,
         enemy_texture = raylib.LoadTexture("assets/sprites/FireSpellsEffects.png"),
         floor_texture = raylib.LoadTexture("assets/sprites/TextureAtlas.png"),
-        circle_texture = raylib.LoadTexture("assets/sprites/MagicArea.png"),
+        circle_texture = raylib.LoadTexture("assets/sprites/MagicArea_128.png"),
         circle_frame = 0.0,
         circle_total_frames = 36,
         circle_speed = 12.0,
