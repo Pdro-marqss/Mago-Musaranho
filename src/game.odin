@@ -8,18 +8,31 @@ import "core:fmt"
 import "core:os"
 import "core:strconv"
 import "core:math"
+import "core:strings"
 
+
+KeybindScheme :: enum {
+    MOVE_IN_WASD_SKILLS_IN_ARROWS,
+    MOVE_IN_ARROWS_SKIILS_IN_WASD,
+    _COUNT,
+}
 
 GameState :: enum {
     Main_Menu,
     Playing,
     Paused,
-    Game_Over
+    Game_Over,
+    Choosing_Keybinds
+}
+
+GameSettings :: struct {
+    high_score: f32,
+    first_run: bool,
+    keybind_scheme: KeybindScheme,
 }
 
 SessionData :: struct {
     score: f32,
-    high_score: f32,
     deaths: int,
     game_time: f32,
     enemy_spawn_timer: f32,
@@ -61,6 +74,8 @@ Player :: struct {
     skill_icons_atlas_texture: raylib.Texture2D,
     frame_texture: raylib.Texture2D,
     key_e_texture: raylib.Texture2D,
+    key_q_texture: raylib.Texture2D,
+    key_up_texture: raylib.Texture2D,
 }
 
 Enemy :: struct {
@@ -84,6 +99,7 @@ player: Player
 enemies: [dynamic]Enemy
 session_game_data: SessionData
 game_state: GameState
+game_settings: GameSettings
 
 INTRO_FADE_DURATION :: 4.0
 SHIELD_DURATION :: 4.0
@@ -137,6 +153,18 @@ init_game :: proc() {
         skill_icons_atlas_texture = raylib.LoadTexture("assets/sprites/SkillsIcons.png"),
         frame_texture = raylib.LoadTexture("assets/sprites/SkillFrame.png"),
         key_e_texture = raylib.LoadTexture("assets/sprites/keysIcons/keyboard_e_outline.png"),
+        key_q_texture = raylib.LoadTexture("assets/sprites/keysIcons/keyboard_q_outline.png"),
+        key_up_texture = raylib.LoadTexture("assets/sprites/keysIcons/keyboard_arrow_up_outline.png"),
+    }
+
+    // Load game settings
+    game_settings = load_game_settings()
+
+    if game_settings.first_run {
+        fmt.println("Primeira execução detectada. Salvando configurações padrão.")
+        game_settings.first_run = false
+        game_settings.keybind_scheme = .MOVE_IN_WASD_SKILLS_IN_ARROWS
+        save_game_settings()
     }
 
     // Default Game Session configs
@@ -150,7 +178,6 @@ init_game :: proc() {
             radius = 200.0,
             active = false,
         },
-        high_score = load_highscore(),
         current_spawn_rate = 0.6,
         current_enemy_speed = 350.0,
         intro_fade_timer = INTRO_FADE_DURATION,
@@ -229,7 +256,15 @@ update_game :: proc(dt: f32) {
 
             // spell shield
             {
-                if raylib.IsKeyPressed(.E) && player.shield_cooldown <= 0 {
+                shield_key_pressed := false
+
+                if game_settings.keybind_scheme == .MOVE_IN_WASD_SKILLS_IN_ARROWS {
+                    shield_key_pressed = raylib.IsKeyPressed(.UP)
+                } else if game_settings.keybind_scheme == .MOVE_IN_ARROWS_SKIILS_IN_WASD {
+                    shield_key_pressed = raylib.IsKeyPressed(.Q)
+                }
+
+                if shield_key_pressed && player.shield_cooldown <= 0 {
                     player.shield_active = true
                     player.shield_timer = SHIELD_DURATION
                     player.shield_cooldown = SHIELD_COOLDOWN
@@ -262,24 +297,47 @@ update_game :: proc(dt: f32) {
             player.is_running = false
 
             {
-                if raylib.IsKeyDown(.W) || raylib.IsKeyDown(.UP) {
+                if game_settings.keybind_scheme == .MOVE_IN_WASD_SKILLS_IN_ARROWS {
+                    // WASD MOVEMENT
+                    if raylib.IsKeyDown(.W) {
                     player.pos.y -= player.speed * dt
                     player.is_running = true
-                } 
-                if raylib.IsKeyDown(.S) || raylib.IsKeyDown(.DOWN) {
-                    player.pos.y += player.speed * dt
+                    } 
+                    if raylib.IsKeyDown(.S) {
+                        player.pos.y += player.speed * dt
+                        player.is_running = true
+                    } 
+                    if raylib.IsKeyDown(.A) {
+                        player.pos.x -= player.speed * dt
+                        player.is_running = true
+                        player.facing_right = false
+                    } 
+                    if raylib.IsKeyDown(.D) {
+                        player.pos.x += player.speed * dt
+                        player.is_running = true
+                        player.facing_right = true
+                    }    
+                } else if game_settings.keybind_scheme == .MOVE_IN_ARROWS_SKIILS_IN_WASD {
+                    // ARROWS MOVEMENT
+                    if raylib.IsKeyDown(.UP) {
+                    player.pos.y -= player.speed * dt
                     player.is_running = true
-                } 
-                if raylib.IsKeyDown(.A) || raylib.IsKeyDown(.LEFT) {
-                    player.pos.x -= player.speed * dt
-                    player.is_running = true
-                    player.facing_right = false
-                } 
-                if raylib.IsKeyDown(.D) || raylib.IsKeyDown(.RIGHT) {
-                    player.pos.x += player.speed * dt
-                    player.is_running = true
-                    player.facing_right = true
-                } 
+                    } 
+                    if raylib.IsKeyDown(.DOWN) {
+                        player.pos.y += player.speed * dt
+                        player.is_running = true
+                    } 
+                    if raylib.IsKeyDown(.LEFT) {
+                        player.pos.x -= player.speed * dt
+                        player.is_running = true
+                        player.facing_right = false
+                    } 
+                    if raylib.IsKeyDown(.RIGHT) {
+                        player.pos.x += player.speed * dt
+                        player.is_running = true
+                        player.facing_right = true
+                    }
+                }
             }
 
             //player frame control (sprite animation)
@@ -342,7 +400,7 @@ update_game :: proc(dt: f32) {
 
                     // Fire Animation frame control
                     enemy.frame_timer += dt
-                    fire_animation_velocity:f32 = 0.1
+                    fire_animation_velocity: f32 = 0.1
                     if enemy.frame_timer >= fire_animation_velocity {
                         enemy.frame_timer = 0
                         enemy.current_frame = (enemy.current_frame + 1) % 6 // runs between 0 - 5
@@ -367,9 +425,9 @@ update_game :: proc(dt: f32) {
                         } else {
                             session_game_data.deaths += 1
                             
-                            if session_game_data.score > session_game_data.high_score {
-                                session_game_data.high_score = session_game_data.score
-                                save_highscore(session_game_data.high_score)
+                            if session_game_data.score > game_settings.high_score {
+                                game_settings.high_score = session_game_data.score
+                                save_game_settings()
                             }
             
                             game_state = .Game_Over
@@ -660,8 +718,13 @@ draw_game :: proc() {
             
             // Quadrado preto de fundo
             raylib.DrawRectangleRec({tecla_x, tecla_y, tecla_size, tecla_size}, raylib.BLACK)
-            // A Tecla
-            raylib.DrawTexturePro(player.key_e_texture, {0,0,f32(player.key_e_texture.width), f32(player.key_e_texture.height)}, {tecla_x, tecla_y, tecla_size, tecla_size}, {0,0}, 0, raylib.WHITE)
+            
+            // Desenha a Tecla baseado no keybind configurado
+            if game_settings.keybind_scheme == .MOVE_IN_WASD_SKILLS_IN_ARROWS {
+                raylib.DrawTexturePro(player.key_up_texture, {0,0,f32(player.key_e_texture.width), f32(player.key_e_texture.height)}, {tecla_x, tecla_y, tecla_size, tecla_size}, {0,0}, 0, raylib.WHITE)
+            } else if game_settings.keybind_scheme == .MOVE_IN_ARROWS_SKIILS_IN_WASD {
+                raylib.DrawTexturePro(player.key_q_texture, {0,0,f32(player.key_e_texture.width), f32(player.key_e_texture.height)}, {tecla_x, tecla_y, tecla_size, tecla_size}, {0,0}, 0, raylib.WHITE)
+            }
 
             // --- PARTE 2: TIMER SEGUINDO O RATO ---
             if player.shield_active {
@@ -795,7 +858,7 @@ draw_game :: proc() {
             score_msg_width: i32 = raylib.MeasureText(score_msg, score_msg_font_size)
             raylib.DrawText(score_msg, i32(screen_width) / 2 - score_msg_width / 2, i32(screen_height) / 2, score_msg_font_size, raylib.WHITE)
 
-            highscore_msg: cstring = fmt.ctprintf("Recorde: %.0f", session_game_data.high_score)
+            highscore_msg: cstring = fmt.ctprintf("Recorde: %.0f", game_settings.high_score)
             highscore_msg_font_size: i32 = 30
             highscore_msg_width: i32 = raylib.MeasureText(highscore_msg, highscore_msg_font_size)
             raylib.DrawText(highscore_msg, i32(screen_width) / 2 - highscore_msg_width / 2, i32(screen_height) / 2 + 40, highscore_msg_font_size, raylib.GOLD)
@@ -885,37 +948,68 @@ draw_game :: proc() {
 }
 
 
-save_highscore :: proc(score: f32) {
-    score_str := fmt.tprintf("%f", score)
+save_game_settings :: proc() {
+    first_run_int := game_settings.first_run ? 1 : 0
+    keybind_scheme_int := int(game_settings.keybind_scheme)
 
-    errnone := os.write_entire_file("save.dat", transmute([]u8)score_str)
+    settings_str := fmt.tprintf("%.2f;%d;%d", game_settings.high_score, first_run_int, keybind_scheme_int)
+
+    errnone := os.write_entire_file("settings.dat", transmute([]u8)settings_str)
 
     // In ODIN, ERROR NONE is 0, that means success. Anything different than that is a error
     if errnone != os.ERROR_NONE {
-        fmt.println("ERRO: Não foi possivel salvar o recorde! Código: ", errnone)
+        fmt.println("ERRO: Não foi possivel salvar as configurações do jogo! Código: ", errnone)
     } else {
-        fmt.println("Sucesso: Recorde salvo com sucesso.")
+        fmt.println("Sucesso: Configurações do jogo salvas com sucesso.")
     }
 }
 
 
-load_highscore :: proc() -> f32 {
-    data, err := os.read_entire_file_from_path("save.dat", context.allocator)
+load_game_settings :: proc() -> GameSettings {
+    data, err := os.read_entire_file_from_path("settings.dat", context.allocator)
+    defaultGameSettings: GameSettings = GameSettings{high_score = 0, first_run = true, keybind_scheme = .MOVE_IN_WASD_SKILLS_IN_ARROWS }
 
     if err != os.ERROR_NONE {
-        // probably a new player
-        return 0
+        fmt.println("settings.dat não encontrado. Assumindo primeira execução e configurações padrão.")
+        return defaultGameSettings
     }
 
     defer delete(data, context.allocator)
 
-    val, ok := strconv.parse_f32(string(data))
-    if !ok {
-        fmt.println("Erro ao tentar ler o save... arquivo pode estar corrompido.");
-        return 0
+    // Parse the data: "highscore;first_run_int;keybind_scheme_int"
+    str_data := string(data)
+    parts := strings.split(str_data, ";")
+    number_of_itens_saved_in_file := 3
+
+    if len(parts) != number_of_itens_saved_in_file {
+        fmt.println("ERRO: settings.dat corrompido ou formato inválido. Revertendo para configurações padrão.")
+        return defaultGameSettings
     }
 
-    return val
+    // HighScore
+    val_highscore, ok_highscore := strconv.parse_f32(parts[0])
+    if !ok_highscore {
+        fmt.println("Erro ao parsear highscore em settings.dat. Revertendo valor para padrão.")
+        val_highscore = 0
+    }
+
+    // First run
+    val_first_run_int, ok_first_run_int := strconv.parse_int(parts[1])
+    val_first_run := val_first_run_int == 1
+    if !ok_first_run_int {
+        fmt.println("Erro ao parsear first_run em settings.dat. Revertendo para valor padrão")
+        val_first_run = true
+    }
+
+    // Keybind Scheme
+    val_keybind_int, ok_keybind := strconv.parse_int(parts[2])
+    val_keybind := KeybindScheme(val_keybind_int)
+    if !ok_keybind || val_keybind_int < 0 || val_keybind_int >= int(KeybindScheme._COUNT) {
+        fmt.println("Erro ao parsear keybind_scheme em settings.dat. Revertendo para o valor padrão.")
+        val_keybind: KeybindScheme = .MOVE_IN_WASD_SKILLS_IN_ARROWS 
+    }
+
+    return GameSettings{ high_score = val_highscore, first_run = val_first_run, keybind_scheme = val_keybind }
 }
 
 
@@ -927,6 +1021,8 @@ deinit_game :: proc() {
     raylib.UnloadTexture(player.skill_icons_atlas_texture)
     raylib.UnloadTexture(player.frame_texture)
     raylib.UnloadTexture(player.key_e_texture)
+    raylib.UnloadTexture(player.key_q_texture)
+    raylib.UnloadTexture(player.key_up_texture)
     raylib.UnloadTexture(session_game_data.main_menu_background)
     raylib.UnloadTexture(session_game_data.enemy_texture)
     raylib.UnloadTexture(session_game_data.floor_texture)
@@ -936,6 +1032,7 @@ deinit_game :: proc() {
 
     enemies = nil
 
+    save_game_settings()
     fmt.println("Memória limpa com sucesso. Até logo, Mago!")
 }
 
