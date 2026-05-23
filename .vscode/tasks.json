@@ -1,4 +1,3 @@
-
 {    
     // Configs para criar atalho de build do jogo (ctrl + shift + b)
     "version": "2.0.0",
@@ -6,12 +5,12 @@
         {
             "label": "DEV_BUILD_AND_RUN",
             "type": "shell",
-            // 1. Cria a pasta debug | 2. Compila para dentro dela | 3. Entra nela e Roda
+            // 1. Cria a pasta debug | 2. Copia assets e ícone | 3. Compila a pasta src inteira | 4. Roda
             "command": [
                 "mkdir build/debug -ErrorAction SilentlyContinue;",
                 "robocopy assets build/debug/assets /MIR /NJH /NJS /NDL /NC /NS > $null;",
                 "robocopy resources build/debug icon.ico /NJH /NJS > $null;",
-                "odin build src -out:build/debug/mago_debug.exe -debug -resource:resources/resources.rc;",
+                "odin build ${workspaceFolder}/src -out:${workspaceFolder}/build/debug/mago_debug.exe -debug -resource:${workspaceFolder}/resources/resources.rc;",
                 "if ($?) { cd build/debug; ./mago_debug.exe }"
             ],
             "group": "build",
@@ -25,8 +24,8 @@
                 "mkdir build/release -ErrorAction SilentlyContinue;",
                 "robocopy assets build/release/assets /MIR /NJH /NJS /NDL /NC /NS > $null;",
                 "robocopy \"C:/odin/vendor/raylib/windows\" \"build/release\" raylib.dll /NJH /NJS > $null;",
-                "robocopy resources build/release icon.exe /NJH /NJS > $null;",
-                "odin build src -out:build/release/mago_musaranho.exe -o:speed -subsystem:windows -resource:resources/resources.rc"
+                "robocopy resources build/release icon.ico /NJH /NJS > $null;",
+                "odin build ${workspaceFolder}/src -out:${workspaceFolder}/build/release/mago_musaranho.exe -o:speed -subsystem:windows -resource:${workspaceFolder}/resources/resources.rc"
             ],
             "group": "build"
         }

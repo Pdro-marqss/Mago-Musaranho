@@ -1,7 +1,7 @@
 // @TODO
 // TROCAR NOME DO PROJETO E SUBIR NO GITHUB
 
-package main
+package game
 
 import "vendor:raylib"
 import "core:fmt"
@@ -9,6 +9,8 @@ import "core:os"
 import "core:strconv"
 import "core:math"
 import "core:strings"
+
+import "../engine"
 
 
 KeybindScheme :: enum {
@@ -48,7 +50,7 @@ SessionData :: struct {
     debug_mode: bool,
     enemy_texture: raylib.Texture2D,
     floor_texture: raylib.Texture2D,
-    circle_texture: raylib.Texture2D,
+    circle_texture: engine.WatchedTexture,
     circle_frame: f32,
     circle_total_frames: f32,
     circle_speed: f32,
@@ -105,7 +107,7 @@ ConquestZone :: struct {
 
 player: Player
 enemies: [dynamic]Enemy
-session_game_data: SessionData
+Session_Game_Data: SessionData
 game_state: GameState
 game_settings: GameSettings
 selected_keybind_option: int
@@ -119,13 +121,13 @@ reset_session :: proc() {
     screen_width := f32(raylib.GetScreenWidth())
     screen_height := f32(raylib.GetScreenHeight())
 
-    session_game_data.score = 0
-    session_game_data.game_time = 0
-    session_game_data.enemy_spawn_timer = 0
+    Session_Game_Data.score = 0
+    Session_Game_Data.game_time = 0
+    Session_Game_Data.enemy_spawn_timer = 0
 
-    session_game_data.center_zone.progress = 0
+    Session_Game_Data.center_zone.progress = 0
 
-    session_game_data.points_fade_text_timer = 0
+    Session_Game_Data.points_fade_text_timer = 0
 
     clear(&enemies)
 
@@ -136,7 +138,7 @@ reset_session :: proc() {
 }
 
 
-init_game :: proc() {
+Init_Game :: proc() {
     // Screen size values
     screen_width: f32 = f32(raylib.GetScreenWidth())
     screen_height: f32 = f32(raylib.GetScreenHeight())
@@ -184,17 +186,17 @@ init_game :: proc() {
         fmt.println("Primeira execução detectada. Direcionando para tela de escolha de binds.")
         game_settings.keybind_scheme = .MOVE_IN_WASD_SKILLS_IN_ARROWS
         game_state = .Choosing_Keybinds
-        session_game_data.initial_logos_index = 2
-        session_game_data.ready_to_show = true
+        Session_Game_Data.initial_logos_index = 2
+        Session_Game_Data.ready_to_show = true
     } else {
         game_state = .Main_Menu
-        session_game_data.ready_to_show = false
-        session_game_data.ready_to_show_timer = 0
-        session_game_data.initial_logos_index = 0
+        Session_Game_Data.ready_to_show = false
+        Session_Game_Data.ready_to_show_timer = 0
+        Session_Game_Data.initial_logos_index = 0
     }
 
     // Default Game Session configs
-    session_game_data = SessionData{
+    Session_Game_Data = SessionData{
         score = 0,
         deaths = 0,
         game_time = 0,
@@ -210,15 +212,15 @@ init_game :: proc() {
         debug_mode = false,
         enemy_texture = raylib.LoadTexture("assets/sprites/FireSpellsEffects.png"),
         floor_texture = raylib.LoadTexture("assets/sprites/TextureAtlas.png"),
-        circle_texture = raylib.LoadTexture("assets/sprites/MagicArea_128.png"),
+        circle_texture = engine.Make_Watched_Texture("assets/sprites/MagicArea_128.png"),
         circle_frame = 0.0,
         circle_total_frames = 36,
         circle_speed = 12.0,
         main_menu_background = raylib.LoadTexture("assets/sprites/MainMenuBg.jpg"),
     }
 
-    raylib.SetTextureFilter(session_game_data.circle_texture, .POINT)
-    raylib.SetTextureFilter(session_game_data.enemy_texture, .POINT)
+    raylib.SetTextureFilter(Session_Game_Data.circle_texture.texture, .POINT)
+    raylib.SetTextureFilter(Session_Game_Data.enemy_texture, .POINT)
 
 
     // Alocando na memória um espaço para o array dinamico de inimigos caso seja a primeira vez rodando o jogo
@@ -231,25 +233,25 @@ init_game :: proc() {
 }
 
 
-update_game :: proc(dt: f32) {
+Update_Game :: proc(dt: f32) {
     // initial sync. Only starts to count when window is focused and fullscreen active
-    if !session_game_data.ready_to_show {
+    if !Session_Game_Data.ready_to_show {
         // if raylib.IsWindowFocused() && raylib.IsWindowFullscreen() {
         if raylib.IsWindowReady() {
-            session_game_data.ready_to_show_timer += dt
-            if session_game_data.ready_to_show_timer > 3.0 {
-                session_game_data.ready_to_show = true
-                session_game_data.ready_to_show_timer = 0
+            Session_Game_Data.ready_to_show_timer += dt
+            if Session_Game_Data.ready_to_show_timer > 3.0 {
+                Session_Game_Data.ready_to_show = true
+                Session_Game_Data.ready_to_show_timer = 0
             }
         }
-    } else if game_state == .Main_Menu && session_game_data.initial_logos_index < 2 {
+    } else if game_state == .Main_Menu && Session_Game_Data.initial_logos_index < 2 {
         // Control the splashes logos sequency in initial game
-        session_game_data.ready_to_show_timer += dt
+        Session_Game_Data.ready_to_show_timer += dt
 
         //each logo stays 3 seconds on screen
-        if session_game_data.ready_to_show_timer > 3.0 {
-            session_game_data.initial_logos_index += 1
-            session_game_data.ready_to_show_timer = 0
+        if Session_Game_Data.ready_to_show_timer > 3.0 {
+            Session_Game_Data.initial_logos_index += 1
+            Session_Game_Data.ready_to_show_timer = 0
         }
     } else if game_state == .Choosing_Keybinds {
         if raylib.IsKeyPressed(.LEFT) {
@@ -265,11 +267,11 @@ update_game :: proc(dt: f32) {
             game_settings.first_run = false
             save_game_settings()
             game_state = .Main_Menu
-            session_game_data.intro_fade_timer = INTRO_FADE_DURATION
+            Session_Game_Data.intro_fade_timer = INTRO_FADE_DURATION
         }
     } else if game_state == .Main_Menu {
-        if session_game_data.intro_fade_timer > 0 {
-            session_game_data.intro_fade_timer -= dt
+        if Session_Game_Data.intro_fade_timer > 0 {
+            Session_Game_Data.intro_fade_timer -= dt
         }
         
         if raylib.IsKeyPressed(.ENTER) || raylib.IsKeyPressed(.KP_ENTER) {
@@ -286,13 +288,13 @@ update_game :: proc(dt: f32) {
     
         if raylib.IsKeyPressed(.ESCAPE) do game_state = .Paused
 
-        session_game_data.game_time += dt
-        session_game_data.enemy_spawn_timer += dt
+        Session_Game_Data.game_time += dt
+        Session_Game_Data.enemy_spawn_timer += dt
     
         // debug mode
         if raylib.IsKeyPressed(.F3) {
-            session_game_data.debug_mode = !session_game_data.debug_mode
-            fmt.printf("Debug Mode: %v\n", session_game_data.debug_mode)
+            Session_Game_Data.debug_mode = !Session_Game_Data.debug_mode
+            fmt.printf("Debug Mode: %v\n", Session_Game_Data.debug_mode)
         }
 
         // spell shield
@@ -406,30 +408,30 @@ update_game :: proc(dt: f32) {
     
         // ConquestZone collider - Score calc
         {
-            if raylib.CheckCollisionCircles(player.pos, player.radius, session_game_data.center_zone.pos, session_game_data.center_zone.radius) {
-                session_game_data.center_zone.active = true
-                session_game_data.center_zone.progress += dt * (1.0 / 3.0)
+            if raylib.CheckCollisionCircles(player.pos, player.radius, Session_Game_Data.center_zone.pos, Session_Game_Data.center_zone.radius) {
+                Session_Game_Data.center_zone.active = true
+                Session_Game_Data.center_zone.progress += dt * (1.0 / 3.0)
     
-                if session_game_data.center_zone.progress >= 1.0 {
-                    session_game_data.score += 5
-                    session_game_data.center_zone.progress = 0
+                if Session_Game_Data.center_zone.progress >= 1.0 {
+                    Session_Game_Data.score += 5
+                    Session_Game_Data.center_zone.progress = 0
     
-                    session_game_data.points_fade_text_timer = 1.0
-                    session_game_data.points_fade_text_alpha = 1.0
+                    Session_Game_Data.points_fade_text_timer = 1.0
+                    Session_Game_Data.points_fade_text_alpha = 1.0
                 }
                 
             } else {
-                session_game_data.center_zone.active = false
-                session_game_data.center_zone.progress -= dt * 0.5
+                Session_Game_Data.center_zone.active = false
+                Session_Game_Data.center_zone.progress -= dt * 0.5
     
-                if session_game_data.center_zone.progress < 0 do session_game_data.center_zone.progress = 0
+                if Session_Game_Data.center_zone.progress < 0 do Session_Game_Data.center_zone.progress = 0
             }
         }
     
         // Progressive Dificulty 
         {
-            session_game_data.current_spawn_rate = max(0.12, 0.6 - (session_game_data.score * 0.005))
-            session_game_data.current_enemy_speed = min(850.0, 350.0 + (session_game_data.score * 2.5))
+            Session_Game_Data.current_spawn_rate = max(0.12, 0.6 - (Session_Game_Data.score * 0.005))
+            Session_Game_Data.current_enemy_speed = min(850.0, 350.0 + (Session_Game_Data.score * 2.5))
         }
     
         // Enemies
@@ -464,10 +466,10 @@ update_game :: proc(dt: f32) {
                         ordered_remove(&enemies, i)
                         continue
                     } else {
-                        session_game_data.deaths += 1
+                        Session_Game_Data.deaths += 1
                         
-                        if session_game_data.score > game_settings.high_score {
-                            game_settings.high_score = session_game_data.score
+                        if Session_Game_Data.score > game_settings.high_score {
+                            game_settings.high_score = Session_Game_Data.score
                             save_game_settings()
                         }
         
@@ -486,7 +488,7 @@ update_game :: proc(dt: f32) {
             } 
     
             // Spawn
-            if session_game_data.enemy_spawn_timer > session_game_data.current_spawn_rate {
+            if Session_Game_Data.enemy_spawn_timer > Session_Game_Data.current_spawn_rate {
                 new_enemy: Enemy
                 new_enemy.width = 40.0
                 new_enemy.height = 20.0
@@ -503,19 +505,19 @@ update_game :: proc(dt: f32) {
                         new_enemy.pos = { screen_width + 20, f32(raylib.GetRandomValue(0, i32(screen_height))) }
                 }
     
-                enemy_direction := raylib.Vector2Normalize(session_game_data.center_zone.pos - new_enemy.pos)
-                new_enemy.vel = enemy_direction * session_game_data.current_enemy_speed
+                enemy_direction := raylib.Vector2Normalize(Session_Game_Data.center_zone.pos - new_enemy.pos)
+                new_enemy.vel = enemy_direction * Session_Game_Data.current_enemy_speed
     
                 append(&enemies, new_enemy)
-                session_game_data.enemy_spawn_timer = 0
+                Session_Game_Data.enemy_spawn_timer = 0
             }
         }
     
         // Points fade out logic
         {
-            if session_game_data.points_fade_text_timer > 0 {
-                session_game_data.points_fade_text_timer -= dt
-                session_game_data.points_fade_text_alpha = session_game_data.points_fade_text_timer / 1.0
+            if Session_Game_Data.points_fade_text_timer > 0 {
+                Session_Game_Data.points_fade_text_timer -= dt
+                Session_Game_Data.points_fade_text_alpha = Session_Game_Data.points_fade_text_timer / 1.0
             }
         }
     } else if game_state == .Paused {
@@ -523,14 +525,14 @@ update_game :: proc(dt: f32) {
         if raylib.IsKeyPressed(.M) {
             reset_session();
             game_state = .Main_Menu
-            session_game_data.intro_fade_timer = INTRO_FADE_DURATION
+            Session_Game_Data.intro_fade_timer = INTRO_FADE_DURATION
         }
         if raylib.IsKeyPressed(.Q) do raylib.CloseWindow()
     }
 }
 
 
-draw_game :: proc() {
+Draw_Game :: proc() {
     raylib.BeginDrawing()
     raylib.ClearBackground(raylib.BLACK)
 
@@ -682,7 +684,7 @@ draw_game :: proc() {
                     width = RENDER_SIZE,
                     height = RENDER_SIZE,
                 }
-                raylib.DrawTexturePro(session_game_data.floor_texture, source_rec, dest_rec, {0,0}, 0, raylib.WHITE)
+                raylib.DrawTexturePro(Session_Game_Data.floor_texture, source_rec, dest_rec, {0,0}, 0, raylib.WHITE)
             }
         }
 
@@ -694,18 +696,18 @@ draw_game :: proc() {
 
         // Draw ConquestZone
         {
-            magic_circle_texture := session_game_data.circle_texture
-            magic_circle_total_frames := session_game_data.circle_total_frames
+            magic_circle_texture := Session_Game_Data.circle_texture.texture
+            magic_circle_total_frames := Session_Game_Data.circle_total_frames
             magic_circle_frame_width := f32(magic_circle_texture.width) / magic_circle_total_frames
             magic_circle_frame_height := f32(magic_circle_texture.height)
 
             //adjust sprite size to conquestZoneRadius size
-            target_width := session_game_data.center_zone.radius * 2.0
-            target_height := session_game_data.center_zone.radius * 2.0
+            target_width := Session_Game_Data.center_zone.radius * 2.0
+            target_height := Session_Game_Data.center_zone.radius * 2.0
         
             dest_rec := raylib.Rectangle{
-                x = session_game_data.center_zone.pos.x,
-                y = session_game_data.center_zone.pos.y,
+                x = Session_Game_Data.center_zone.pos.x,
+                y = Session_Game_Data.center_zone.pos.y,
                 width = target_width,
                 height = target_height
             }
@@ -723,7 +725,7 @@ draw_game :: proc() {
             raylib.DrawTexturePro(magic_circle_texture, source_rec_gravura, dest_rec, origin, 0, raylib.Fade(raylib.BLACK, 0.1))
 
             // Draw conquestZone animation
-            current_frame := i32(session_game_data.center_zone.progress * 35.0)
+            current_frame := i32(Session_Game_Data.center_zone.progress * 35.0)
 
             source_rec_animacao := raylib.Rectangle{
                 x = f32(current_frame) * magic_circle_frame_width,
@@ -732,7 +734,7 @@ draw_game :: proc() {
                 height = magic_circle_frame_height,
             }
 
-            if session_game_data.center_zone.progress > 0.0 {
+            if Session_Game_Data.center_zone.progress > 0.0 {
                 raylib.DrawTexturePro(magic_circle_texture, source_rec_animacao, dest_rec, origin, 0, raylib.WHITE)
             }
         }
@@ -764,10 +766,10 @@ draw_game :: proc() {
             origin := raylib.Vector2{ dest_rec.width / 2, dest_rec.height / 2 }
             raylib.DrawTexturePro(active_tex, source_rec, dest_rec, origin, 0, raylib.WHITE)
 
-            if session_game_data.debug_mode {
+            if Session_Game_Data.debug_mode {
                 raylib.DrawCircleLinesV(player.pos, player.radius, raylib.LIME)
 
-                raylib.DrawCircle(i32(session_game_data.center_zone.pos.x), i32(session_game_data.center_zone.pos.y), 5, raylib.YELLOW)
+                raylib.DrawCircle(i32(Session_Game_Data.center_zone.pos.x), i32(Session_Game_Data.center_zone.pos.y), 5, raylib.YELLOW)
             }
         }
 
@@ -807,8 +809,8 @@ draw_game :: proc() {
                 ROWS :: 30
                 FIREBALL_ROW :: 8.0
 
-                text_w: f32 = f32(session_game_data.enemy_texture.width)
-                text_h: f32 = f32(session_game_data.enemy_texture.height)
+                text_w: f32 = f32(Session_Game_Data.enemy_texture.width)
+                text_h: f32 = f32(Session_Game_Data.enemy_texture.height)
 
                 frame_w: f32 = text_w / COLS
                 frame_h: f32 = text_h / ROWS
@@ -833,10 +835,10 @@ draw_game :: proc() {
 
                 origin: raylib.Vector2 = raylib.Vector2{ dest_rec.width / 2, dest_rec.height / 2 }
 
-                raylib.DrawTexturePro(session_game_data.enemy_texture, source_rec, dest_rec, origin, fireball_angle, raylib.WHITE)
+                raylib.DrawTexturePro(Session_Game_Data.enemy_texture, source_rec, dest_rec, origin, fireball_angle, raylib.WHITE)
             
                 // Debug fireball
-                if session_game_data.debug_mode {
+                if Session_Game_Data.debug_mode {
                     direction := raylib.Vector2Normalize(enemy.vel)
                     hitbox_center := enemy.pos + (direction * 15.0)
 
@@ -941,7 +943,7 @@ draw_game :: proc() {
         // Draw UI HUD
         {
             // Points fade text
-            if session_game_data.points_fade_text_timer > 0 {
+            if Session_Game_Data.points_fade_text_timer > 0 {
                 points_fade_text_in_cstring := fmt.ctprintf("+5 PONTOS")
                 points_fade_text_font_size: i32 = 80
     
@@ -949,24 +951,24 @@ draw_game :: proc() {
                 
                 points_fade_text_pos_x := i32(screen_width / 2) - (points_fade_text_width / 2)
                 //floating effect in text (fly a bit)
-                points_fade_text_pos_y := i32(200 - (1.0 - session_game_data.points_fade_text_alpha) * 80)
+                points_fade_text_pos_y := i32(200 - (1.0 - Session_Game_Data.points_fade_text_alpha) * 80)
     
                 raylib.DrawText(
                     points_fade_text_in_cstring, 
                     points_fade_text_pos_x, 
                     points_fade_text_pos_y, 
                     points_fade_text_font_size, 
-                    raylib.Fade(raylib.WHITE, session_game_data.points_fade_text_alpha)
+                    raylib.Fade(raylib.WHITE, Session_Game_Data.points_fade_text_alpha)
                 )
             }
     
     
             // In game infos (in top of the screen)
-            score_text_formatted := fmt.ctprintf("PONTOS: %.0f", session_game_data.score) 
+            score_text_formatted := fmt.ctprintf("PONTOS: %.0f", Session_Game_Data.score) 
             raylib.DrawText(score_text_formatted, 30, 30, 50, raylib.GOLD)
     
-            raylib.DrawText(fmt.ctprintf("Tempo: %.1fs", session_game_data.game_time), 30, 90, 40, raylib.RAYWHITE)
-            raylib.DrawText(fmt.ctprintf("Mortes: %d", session_game_data.deaths), 30, 140, 40, raylib.RED)
+            raylib.DrawText(fmt.ctprintf("Tempo: %.1fs", Session_Game_Data.game_time), 30, 90, 40, raylib.RAYWHITE)
+            raylib.DrawText(fmt.ctprintf("Mortes: %d", Session_Game_Data.deaths), 30, 140, 40, raylib.RED)
             
             raylib.DrawFPS(raylib.GetScreenWidth() - 120, 30)
         }
@@ -1016,7 +1018,7 @@ draw_game :: proc() {
             death_msg_width: i32 = raylib.MeasureText(fmt.ctprintf(death_msg), death_msg_font_size)
             raylib.DrawText(fmt.ctprintf(death_msg), i32(screen_width) / 2 - death_msg_width / 2, i32(screen_height) / 2 - 100, death_msg_font_size, raylib.RED)
             
-            score_msg: cstring = fmt.ctprintf("Score: %.0f", session_game_data.score)
+            score_msg: cstring = fmt.ctprintf("Score: %.0f", Session_Game_Data.score)
             score_msg_font_size: i32 = 30
             score_msg_width: i32 = raylib.MeasureText(score_msg, score_msg_font_size)
             raylib.DrawText(score_msg, i32(screen_width) / 2 - score_msg_width / 2, i32(screen_height) / 2, score_msg_font_size, raylib.WHITE)
@@ -1035,15 +1037,15 @@ draw_game :: proc() {
 
     // Draw MainMenu
     if game_state == .Main_Menu {
-        if !session_game_data.ready_to_show {
+        if !Session_Game_Data.ready_to_show {
             raylib.ClearBackground(raylib.BLACK)
-        } else if session_game_data.initial_logos_index == 0 {
+        } else if Session_Game_Data.initial_logos_index == 0 {
             raylib.ClearBackground(raylib.BLACK)
             odin_logo_text: cstring = "MADE WITH ODIN"
             odin_logo_text_font_size: i32 = 30
             odin_logo_text_width: i32 = raylib.MeasureText(odin_logo_text, odin_logo_text_font_size) 
             raylib.DrawText(odin_logo_text, i32(screen_width / 2) - odin_logo_text_width / 2, i32(screen_height / 2), odin_logo_text_font_size, raylib.WHITE)
-        } else if session_game_data.initial_logos_index == 1 {
+        } else if Session_Game_Data.initial_logos_index == 1 {
             raylib.ClearBackground(raylib.BLACK)
             musaranho_logo_text: cstring = "MUSARANHO STUDIOS"
             musaranho_logo_text_font_size: i32 = 30
@@ -1056,7 +1058,7 @@ draw_game :: proc() {
 
             // Draw main menu Background image
             {
-                backgroundMenuTex := session_game_data.main_menu_background
+                backgroundMenuTex := Session_Game_Data.main_menu_background
                 
                 // Actual backgroundMenu texture size
                 source_rec := raylib.Rectangle {
@@ -1100,8 +1102,8 @@ draw_game :: proc() {
             raylib.DrawText(exit_text, i32(screen_width) / 2 - exit_text_width / 2, exit_text_pos_y, exit_text_font_size, raylib.LIGHTGRAY)
 
             // Fade in effect in the first 2 seconds 
-            if session_game_data.intro_fade_timer > 0 {
-                alpha: f32 = clamp(session_game_data.intro_fade_timer / 3.0, 0.0, 1.0)
+            if Session_Game_Data.intro_fade_timer > 0 {
+                alpha: f32 = clamp(Session_Game_Data.intro_fade_timer / 3.0, 0.0, 1.0)
                 raylib.DrawRectangle(-1000, -1000, 5000, 5000, raylib.Fade(raylib.BLACK, alpha))
             }
         }
@@ -1176,7 +1178,7 @@ load_game_settings :: proc() -> GameSettings {
 }
 
 
-deinit_game :: proc() {
+Deinit_Game :: proc() {
     // liberar memória aqui
     raylib.UnloadTexture(player.texture_idle)
     raylib.UnloadTexture(player.texture_run)
@@ -1194,10 +1196,10 @@ deinit_game :: proc() {
     raylib.UnloadTexture(player.key_right_texture)
     raylib.UnloadTexture(player.key_down_texture)
     raylib.UnloadTexture(player.key_left_texture)
-    raylib.UnloadTexture(session_game_data.main_menu_background)
-    raylib.UnloadTexture(session_game_data.enemy_texture)
-    raylib.UnloadTexture(session_game_data.floor_texture)
-    raylib.UnloadTexture(session_game_data.circle_texture)
+    raylib.UnloadTexture(Session_Game_Data.main_menu_background)
+    raylib.UnloadTexture(Session_Game_Data.enemy_texture)
+    raylib.UnloadTexture(Session_Game_Data.floor_texture)
+    raylib.UnloadTexture(Session_Game_Data.circle_texture.texture)
 
     if enemies != nil do delete(enemies)
 

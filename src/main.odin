@@ -1,6 +1,11 @@
 package main
 
 import "vendor:raylib"
+import "game"
+import "engine"
+
+// Timer para evitar ler o disco uma porrada de vezes por segundo
+asset_check_timer: f32 = 0.0
 
 main :: proc() {
     raylib.SetConfigFlags({ .WINDOW_HIGHDPI, .VSYNC_HINT, .WINDOW_RESIZABLE })
@@ -16,20 +21,28 @@ main :: proc() {
 
     if !raylib.IsWindowReady() do return
 
-    if !raylib.IsWindowFullscreen() do raylib.ToggleFullscreen()
+    // if !raylib.IsWindowFullscreen() do raylib.ToggleFullscreen()
 
     raylib.HideCursor()
 
-    init_game()
+    game.Init_Game()
 
     raylib.SetExitKey(.KEY_NULL);
 
     for !raylib.WindowShouldClose() {
         dt := raylib.GetFrameTime()
-        update_game(dt)
-        draw_game()
+
+        asset_check_timer += dt
+        if asset_check_timer >= 0.5 {
+            engine.Update_Watched_Texture(&game.Session_Game_Data.circle_texture)
+
+            asset_check_timer = 0.0
+        }
+
+        game.Update_Game(dt)
+        game.Draw_Game()
     }
 
-    deinit_game()
+    game.Deinit_Game()
     raylib.CloseWindow()
 }
