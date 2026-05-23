@@ -73,9 +73,17 @@ Player :: struct {
     shield_animation_timer: f32,
     skill_icons_atlas_texture: raylib.Texture2D,
     frame_texture: raylib.Texture2D,
-    key_e_texture: raylib.Texture2D,
     key_q_texture: raylib.Texture2D,
+    key_w_texture: raylib.Texture2D,
+    key_e_texture: raylib.Texture2D,
+    key_r_texture: raylib.Texture2D,
+    key_a_texture: raylib.Texture2D,
+    key_s_texture: raylib.Texture2D,
+    key_d_texture: raylib.Texture2D,
     key_up_texture: raylib.Texture2D,
+    key_right_texture: raylib.Texture2D,
+    key_down_texture: raylib.Texture2D,
+    key_left_texture: raylib.Texture2D,
 }
 
 Enemy :: struct {
@@ -100,6 +108,7 @@ enemies: [dynamic]Enemy
 session_game_data: SessionData
 game_state: GameState
 game_settings: GameSettings
+selected_keybind_option: int
 
 INTRO_FADE_DURATION :: 4.0
 SHIELD_DURATION :: 4.0
@@ -152,19 +161,36 @@ init_game :: proc() {
         shield_cooldown = 0,
         skill_icons_atlas_texture = raylib.LoadTexture("assets/sprites/SkillsIcons.png"),
         frame_texture = raylib.LoadTexture("assets/sprites/SkillFrame.png"),
-        key_e_texture = raylib.LoadTexture("assets/sprites/keysIcons/keyboard_e_outline.png"),
         key_q_texture = raylib.LoadTexture("assets/sprites/keysIcons/keyboard_q_outline.png"),
+        key_w_texture = raylib.LoadTexture("assets/sprites/keysIcons/keyboard_w_outline.png"),
+        key_e_texture = raylib.LoadTexture("assets/sprites/keysIcons/keyboard_e_outline.png"),
+        key_r_texture = raylib.LoadTexture("assets/sprites/keysIcons/keyboard_r_outline.png"),
+        key_a_texture = raylib.LoadTexture("assets/sprites/keysIcons/keyboard_a_outline.png"),
+        key_s_texture = raylib.LoadTexture("assets/sprites/keysIcons/keyboard_s_outline.png"),
+        key_d_texture = raylib.LoadTexture("assets/sprites/keysIcons/keyboard_d_outline.png"),
         key_up_texture = raylib.LoadTexture("assets/sprites/keysIcons/keyboard_arrow_up_outline.png"),
+        key_right_texture = raylib.LoadTexture("assets/sprites/keysIcons/keyboard_arrow_right_outline.png"),
+        key_down_texture = raylib.LoadTexture("assets/sprites/keysIcons/keyboard_arrow_down_outline.png"),
+        key_left_texture = raylib.LoadTexture("assets/sprites/keysIcons/keyboard_arrow_left_outline.png"),
     }
+
+    // Iniciate the first bind option as selected
+    selected_keybind_option = 0
 
     // Load game settings
     game_settings = load_game_settings()
 
     if game_settings.first_run {
-        fmt.println("Primeira execução detectada. Salvando configurações padrão.")
-        game_settings.first_run = false
+        fmt.println("Primeira execução detectada. Direcionando para tela de escolha de binds.")
         game_settings.keybind_scheme = .MOVE_IN_WASD_SKILLS_IN_ARROWS
-        save_game_settings()
+        game_state = .Choosing_Keybinds
+        session_game_data.initial_logos_index = 2
+        session_game_data.ready_to_show = true
+    } else {
+        game_state = .Main_Menu
+        session_game_data.ready_to_show = false
+        session_game_data.ready_to_show_timer = 0
+        session_game_data.initial_logos_index = 0
     }
 
     // Default Game Session configs
@@ -180,7 +206,7 @@ init_game :: proc() {
         },
         current_spawn_rate = 0.6,
         current_enemy_speed = 350.0,
-        intro_fade_timer = INTRO_FADE_DURATION,
+        intro_fade_timer = INTRO_FADE_DURATION, 
         debug_mode = false,
         enemy_texture = raylib.LoadTexture("assets/sprites/FireSpellsEffects.png"),
         floor_texture = raylib.LoadTexture("assets/sprites/TextureAtlas.png"),
@@ -225,268 +251,281 @@ update_game :: proc(dt: f32) {
             session_game_data.initial_logos_index += 1
             session_game_data.ready_to_show_timer = 0
         }
-    } else {
+    } else if game_state == .Choosing_Keybinds {
+        if raylib.IsKeyPressed(.LEFT) {
+            selected_keybind_option -= 1
+            if selected_keybind_option < 0 do selected_keybind_option = int(KeybindScheme._COUNT) - 1
+        }
+        if raylib.IsKeyPressed(.RIGHT) {
+            selected_keybind_option += 1
+            if selected_keybind_option >= int(KeybindScheme._COUNT) do selected_keybind_option = 0
+        }
+        if raylib.IsKeyPressed(.ENTER) || raylib.IsKeyPressed(.SPACE) {
+            game_settings.keybind_scheme = KeybindScheme(selected_keybind_option)
+            game_settings.first_run = false
+            save_game_settings()
+            game_state = .Main_Menu
+            session_game_data.intro_fade_timer = INTRO_FADE_DURATION
+        }
+    } else if game_state == .Main_Menu {
         if session_game_data.intro_fade_timer > 0 {
             session_game_data.intro_fade_timer -= dt
         }
-
-        if game_state == .Main_Menu {
-            if raylib.IsKeyPressed(.ENTER) || raylib.IsKeyPressed(.KP_ENTER) {
-                game_state = .Playing
-            }
-        } else if game_state == .Game_Over {
-            if raylib.IsKeyPressed(.SPACE) {
-                reset_session()
-                game_state = .Playing
-            }
-        } else if game_state == .Playing {
-            screen_width: f32 = f32(raylib.GetScreenWidth())
-            screen_height: f32 = f32(raylib.GetScreenHeight())
         
-            if raylib.IsKeyPressed(.ESCAPE) do game_state = .Paused
-
-            session_game_data.game_time += dt
-            session_game_data.enemy_spawn_timer += dt
-        
-            // debug mode
-            if raylib.IsKeyPressed(.F3) {
-                session_game_data.debug_mode = !session_game_data.debug_mode
-                fmt.printf("Debug Mode: %v\n", session_game_data.debug_mode)
-            }
-
-            // spell shield
-            {
-                shield_key_pressed := false
-
-                if game_settings.keybind_scheme == .MOVE_IN_WASD_SKILLS_IN_ARROWS {
-                    shield_key_pressed = raylib.IsKeyPressed(.UP)
-                } else if game_settings.keybind_scheme == .MOVE_IN_ARROWS_SKIILS_IN_WASD {
-                    shield_key_pressed = raylib.IsKeyPressed(.Q)
-                }
-
-                if shield_key_pressed && player.shield_cooldown <= 0 {
-                    player.shield_active = true
-                    player.shield_timer = SHIELD_DURATION
-                    player.shield_cooldown = SHIELD_COOLDOWN
-                }
+        if raylib.IsKeyPressed(.ENTER) || raylib.IsKeyPressed(.KP_ENTER) {
+            game_state = .Playing
+        }
+    } else if game_state == .Game_Over {
+        if raylib.IsKeyPressed(.SPACE) {
+            reset_session()
+            game_state = .Playing
+        }
+    } else if game_state == .Playing {
+        screen_width: f32 = f32(raylib.GetScreenWidth())
+        screen_height: f32 = f32(raylib.GetScreenHeight())
     
-                if player.shield_cooldown > 0 {
-                    player.shield_cooldown -= dt
-                }
+        if raylib.IsKeyPressed(.ESCAPE) do game_state = .Paused
 
-                if player.shield_active {
-                    player.shield_timer -= dt
-                    
-                    if player.shield_timer <= 0 {
-                        player.shield_active = false
-                    }
+        session_game_data.game_time += dt
+        session_game_data.enemy_spawn_timer += dt
+    
+        // debug mode
+        if raylib.IsKeyPressed(.F3) {
+            session_game_data.debug_mode = !session_game_data.debug_mode
+            fmt.printf("Debug Mode: %v\n", session_game_data.debug_mode)
+        }
 
-                    // shield animation (atlas 15x14 = 210 frames)
-                    player.shield_animation_timer += dt
-                    animation_velocity:f32 = 0.08
-                    if player.shield_animation_timer > animation_velocity {
-                        player.shield_animation_timer = 0
-                        player.shield_frame += 1
+        // spell shield
+        {
+            shield_key_pressed := false
 
-                        if player.shield_frame >= 6 do player.shield_frame = 0
-                    }
-                }
+            if game_settings.keybind_scheme == .MOVE_IN_WASD_SKILLS_IN_ARROWS {
+                shield_key_pressed = raylib.IsKeyPressed(.UP)
+            } else if game_settings.keybind_scheme == .MOVE_IN_ARROWS_SKIILS_IN_WASD {
+                shield_key_pressed = raylib.IsKeyPressed(.Q)
             }
 
-            // Player movement
-            player.is_running = false
+            if shield_key_pressed && player.shield_cooldown <= 0 {
+                player.shield_active = true
+                player.shield_timer = SHIELD_DURATION
+                player.shield_cooldown = SHIELD_COOLDOWN
+            }
 
-            {
-                if game_settings.keybind_scheme == .MOVE_IN_WASD_SKILLS_IN_ARROWS {
-                    // WASD MOVEMENT
-                    if raylib.IsKeyDown(.W) {
-                    player.pos.y -= player.speed * dt
+            if player.shield_cooldown > 0 {
+                player.shield_cooldown -= dt
+            }
+
+            if player.shield_active {
+                player.shield_timer -= dt
+                
+                if player.shield_timer <= 0 {
+                    player.shield_active = false
+                }
+
+                // shield animation (atlas 15x14 = 210 frames)
+                player.shield_animation_timer += dt
+                animation_velocity:f32 = 0.08
+                if player.shield_animation_timer > animation_velocity {
+                    player.shield_animation_timer = 0
+                    player.shield_frame += 1
+
+                    if player.shield_frame >= 6 do player.shield_frame = 0
+                }
+            }
+        }
+
+        // Player movement
+        player.is_running = false
+
+        {
+            if game_settings.keybind_scheme == .MOVE_IN_WASD_SKILLS_IN_ARROWS {
+                // WASD MOVEMENT
+                if raylib.IsKeyDown(.W) {
+                player.pos.y -= player.speed * dt
+                player.is_running = true
+                } 
+                if raylib.IsKeyDown(.S) {
+                    player.pos.y += player.speed * dt
                     player.is_running = true
-                    } 
-                    if raylib.IsKeyDown(.S) {
-                        player.pos.y += player.speed * dt
-                        player.is_running = true
-                    } 
-                    if raylib.IsKeyDown(.A) {
-                        player.pos.x -= player.speed * dt
-                        player.is_running = true
-                        player.facing_right = false
-                    } 
-                    if raylib.IsKeyDown(.D) {
-                        player.pos.x += player.speed * dt
-                        player.is_running = true
-                        player.facing_right = true
-                    }    
-                } else if game_settings.keybind_scheme == .MOVE_IN_ARROWS_SKIILS_IN_WASD {
-                    // ARROWS MOVEMENT
-                    if raylib.IsKeyDown(.UP) {
-                    player.pos.y -= player.speed * dt
+                } 
+                if raylib.IsKeyDown(.A) {
+                    player.pos.x -= player.speed * dt
                     player.is_running = true
-                    } 
-                    if raylib.IsKeyDown(.DOWN) {
-                        player.pos.y += player.speed * dt
-                        player.is_running = true
-                    } 
-                    if raylib.IsKeyDown(.LEFT) {
-                        player.pos.x -= player.speed * dt
-                        player.is_running = true
-                        player.facing_right = false
-                    } 
-                    if raylib.IsKeyDown(.RIGHT) {
-                        player.pos.x += player.speed * dt
-                        player.is_running = true
-                        player.facing_right = true
-                    }
+                    player.facing_right = false
+                } 
+                if raylib.IsKeyDown(.D) {
+                    player.pos.x += player.speed * dt
+                    player.is_running = true
+                    player.facing_right = true
+                }    
+            } else if game_settings.keybind_scheme == .MOVE_IN_ARROWS_SKIILS_IN_WASD {
+                // ARROWS MOVEMENT
+                if raylib.IsKeyDown(.UP) {
+                player.pos.y -= player.speed * dt
+                player.is_running = true
+                } 
+                if raylib.IsKeyDown(.DOWN) {
+                    player.pos.y += player.speed * dt
+                    player.is_running = true
+                } 
+                if raylib.IsKeyDown(.LEFT) {
+                    player.pos.x -= player.speed * dt
+                    player.is_running = true
+                    player.facing_right = false
+                } 
+                if raylib.IsKeyDown(.RIGHT) {
+                    player.pos.x += player.speed * dt
+                    player.is_running = true
+                    player.facing_right = true
                 }
             }
+        }
 
-            //player frame control (sprite animation)
-            {
-                player.frame_timer += dt
-                animation_velocity: f32 = 0.1
-                animation_max_frames: int = 6
+        //player frame control (sprite animation)
+        {
+            player.frame_timer += dt
+            animation_velocity: f32 = 0.1
+            animation_max_frames: int = 6
 
-                if player.frame_timer >= animation_velocity {
-                    player.frame_timer = 0
-                    player.current_frame += 1
-                    if player.current_frame >= animation_max_frames {
-                        player.current_frame = 0
-                    } 
+            if player.frame_timer >= animation_velocity {
+                player.frame_timer = 0
+                player.current_frame += 1
+                if player.current_frame >= animation_max_frames {
+                    player.current_frame = 0
+                } 
+            }
+        }
+    
+        // Secury that player canot get out of the screen bounds
+        {
+            if player.pos.x < player.radius do player.pos.x = player.radius
+            if player.pos.x > screen_width - player.radius do player.pos.x = screen_width - player.radius
+            if player.pos.y < player.radius do player.pos.y = player.radius
+            if player.pos.y > screen_height - player.radius do player.pos.y = screen_height - player.radius
+        }
+    
+        // ConquestZone collider - Score calc
+        {
+            if raylib.CheckCollisionCircles(player.pos, player.radius, session_game_data.center_zone.pos, session_game_data.center_zone.radius) {
+                session_game_data.center_zone.active = true
+                session_game_data.center_zone.progress += dt * (1.0 / 3.0)
+    
+                if session_game_data.center_zone.progress >= 1.0 {
+                    session_game_data.score += 5
+                    session_game_data.center_zone.progress = 0
+    
+                    session_game_data.points_fade_text_timer = 1.0
+                    session_game_data.points_fade_text_alpha = 1.0
                 }
+                
+            } else {
+                session_game_data.center_zone.active = false
+                session_game_data.center_zone.progress -= dt * 0.5
+    
+                if session_game_data.center_zone.progress < 0 do session_game_data.center_zone.progress = 0
             }
-        
-            // Secury that player canot get out of the screen bounds
-            {
-                if player.pos.x < player.radius do player.pos.x = player.radius
-                if player.pos.x > screen_width - player.radius do player.pos.x = screen_width - player.radius
-                if player.pos.y < player.radius do player.pos.y = player.radius
-                if player.pos.y > screen_height - player.radius do player.pos.y = screen_height - player.radius
-            }
-        
-            // ConquestZone collider - Score calc
-            {
-                if raylib.CheckCollisionCircles(player.pos, player.radius, session_game_data.center_zone.pos, session_game_data.center_zone.radius) {
-                    session_game_data.center_zone.active = true
-                    session_game_data.center_zone.progress += dt * (1.0 / 3.0)
-        
-                    if session_game_data.center_zone.progress >= 1.0 {
-                        session_game_data.score += 5
-                        session_game_data.center_zone.progress = 0
-        
-                        session_game_data.points_fade_text_timer = 1.0
-                        session_game_data.points_fade_text_alpha = 1.0
-                    }
-                    
-                } else {
-                    session_game_data.center_zone.active = false
-                    session_game_data.center_zone.progress -= dt * 0.5
-        
-                    if session_game_data.center_zone.progress < 0 do session_game_data.center_zone.progress = 0
+        }
+    
+        // Progressive Dificulty 
+        {
+            session_game_data.current_spawn_rate = max(0.12, 0.6 - (session_game_data.score * 0.005))
+            session_game_data.current_enemy_speed = min(850.0, 350.0 + (session_game_data.score * 2.5))
+        }
+    
+        // Enemies
+        {
+            // Movement and Collision
+            for i := 0; i < len(enemies); {
+                enemy := &enemies[i]
+                enemy.pos += enemy.vel * dt
+
+                // Fire Animation frame control
+                enemy.frame_timer += dt
+                fire_animation_velocity: f32 = 0.1
+                if enemy.frame_timer >= fire_animation_velocity {
+                    enemy.frame_timer = 0
+                    enemy.current_frame = (enemy.current_frame + 1) % 6 // runs between 0 - 5
                 }
-            }
-        
-            // Progressive Dificulty 
-            {
-                session_game_data.current_spawn_rate = max(0.12, 0.6 - (session_game_data.score * 0.005))
-                session_game_data.current_enemy_speed = min(850.0, 350.0 + (session_game_data.score * 2.5))
-            }
-        
-            // Enemies
-            {
-                // Movement and Collision
-                for i := 0; i < len(enemies); {
-                    enemy := &enemies[i]
-                    enemy.pos += enemy.vel * dt
 
-                    // Fire Animation frame control
-                    enemy.frame_timer += dt
-                    fire_animation_velocity: f32 = 0.1
-                    if enemy.frame_timer >= fire_animation_velocity {
-                        enemy.frame_timer = 0
-                        enemy.current_frame = (enemy.current_frame + 1) % 6 // runs between 0 - 5
-                    }
+                // fire_hitbox: raylib.Rectangle = raylib.Rectangle {
+                //     x = enemy.pos.x - (enemy.width / 2),
+                //     y = enemy.pos.y - (enemy.height / 2),
+                //     width = enemy.width,
+                //     height = enemy.height,
+                // }
 
-                    // fire_hitbox: raylib.Rectangle = raylib.Rectangle {
-                    //     x = enemy.pos.x - (enemy.width / 2),
-                    //     y = enemy.pos.y - (enemy.height / 2),
-                    //     width = enemy.width,
-                    //     height = enemy.height,
-                    // }
+                direction := raylib.Vector2Normalize(enemy.vel)
+                hitbox_center:[2]f32 = enemy.pos + (direction * 15.0)
+                hitbox_radius: f32 = 12.0
+                collision_radius := player.shield_active ? player.radius * 1.8 : player.radius
 
-                    direction := raylib.Vector2Normalize(enemy.vel)
-                    hitbox_center:[2]f32 = enemy.pos + (direction * 15.0)
-                    hitbox_radius: f32 = 12.0
-                    collision_radius := player.shield_active ? player.radius * 1.8 : player.radius
-
-                    if raylib.CheckCollisionCircles(player.pos, collision_radius, hitbox_center, hitbox_radius) {
-                        if player.shield_active {
-                            ordered_remove(&enemies, i)
-                            continue
-                        } else {
-                            session_game_data.deaths += 1
-                            
-                            if session_game_data.score > game_settings.high_score {
-                                game_settings.high_score = session_game_data.score
-                                save_game_settings()
-                            }
-            
-                            game_state = .Game_Over
-                            break
-                        }
-                    }
-
-                    // Clear enemies from screen and memory
-                    if enemy.pos.x < -100 || enemy.pos.x > screen_width + 100 || enemy.pos.y < -100 || enemy.pos.y > screen_height + 100{
+                if raylib.CheckCollisionCircles(player.pos, collision_radius, hitbox_center, hitbox_radius) {
+                    if player.shield_active {
                         ordered_remove(&enemies, i)
                         continue
+                    } else {
+                        session_game_data.deaths += 1
+                        
+                        if session_game_data.score > game_settings.high_score {
+                            game_settings.high_score = session_game_data.score
+                            save_game_settings()
+                        }
+        
+                        game_state = .Game_Over
+                        break
                     }
+                }
 
-                    i += 1
-                } 
-        
-                // Spawn
-                if session_game_data.enemy_spawn_timer > session_game_data.current_spawn_rate {
-                    new_enemy: Enemy
-                    new_enemy.width = 40.0
-                    new_enemy.height = 20.0
-        
-                    spawn_corner_side := raylib.GetRandomValue(0, 3)
-                    switch spawn_corner_side {
-                        case 0: //cima
-                            new_enemy.pos = { f32(raylib.GetRandomValue(0, i32(screen_width))), -20 }
-                        case 1: //baixo
-                            new_enemy.pos = { f32(raylib.GetRandomValue(0, i32(screen_width))), screen_height + 20 }
-                        case 2: //esquerda
-                            new_enemy.pos = { -20, f32(raylib.GetRandomValue(0, i32(screen_height))) }
-                        case 3: //direita
-                            new_enemy.pos = { screen_width + 20, f32(raylib.GetRandomValue(0, i32(screen_height))) }
-                    }
-        
-                    enemy_direction := raylib.Vector2Normalize(session_game_data.center_zone.pos - new_enemy.pos)
-                    new_enemy.vel = enemy_direction * session_game_data.current_enemy_speed
-        
-                    append(&enemies, new_enemy)
-                    session_game_data.enemy_spawn_timer = 0
+                // Clear enemies from screen and memory
+                if enemy.pos.x < -100 || enemy.pos.x > screen_width + 100 || enemy.pos.y < -100 || enemy.pos.y > screen_height + 100{
+                    ordered_remove(&enemies, i)
+                    continue
                 }
-            }
-        
-            // Points fade out logic
-            {
-                if session_game_data.points_fade_text_timer > 0 {
-                    session_game_data.points_fade_text_timer -= dt
-                    session_game_data.points_fade_text_alpha = session_game_data.points_fade_text_timer / 1.0
+
+                i += 1
+            } 
+    
+            // Spawn
+            if session_game_data.enemy_spawn_timer > session_game_data.current_spawn_rate {
+                new_enemy: Enemy
+                new_enemy.width = 40.0
+                new_enemy.height = 20.0
+    
+                spawn_corner_side := raylib.GetRandomValue(0, 3)
+                switch spawn_corner_side {
+                    case 0: //cima
+                        new_enemy.pos = { f32(raylib.GetRandomValue(0, i32(screen_width))), -20 }
+                    case 1: //baixo
+                        new_enemy.pos = { f32(raylib.GetRandomValue(0, i32(screen_width))), screen_height + 20 }
+                    case 2: //esquerda
+                        new_enemy.pos = { -20, f32(raylib.GetRandomValue(0, i32(screen_height))) }
+                    case 3: //direita
+                        new_enemy.pos = { screen_width + 20, f32(raylib.GetRandomValue(0, i32(screen_height))) }
                 }
+    
+                enemy_direction := raylib.Vector2Normalize(session_game_data.center_zone.pos - new_enemy.pos)
+                new_enemy.vel = enemy_direction * session_game_data.current_enemy_speed
+    
+                append(&enemies, new_enemy)
+                session_game_data.enemy_spawn_timer = 0
             }
-        } else if game_state == .Paused {
-            if raylib.IsKeyPressed(.ESCAPE) || raylib.IsKeyPressed(.C) do game_state = .Playing
-            if raylib.IsKeyPressed(.M) {
-                reset_session();
-                game_state = .Main_Menu
-            }
-            if raylib.IsKeyPressed(.Q) do raylib.CloseWindow()
-            
-            return
         }
+    
+        // Points fade out logic
+        {
+            if session_game_data.points_fade_text_timer > 0 {
+                session_game_data.points_fade_text_timer -= dt
+                session_game_data.points_fade_text_alpha = session_game_data.points_fade_text_timer / 1.0
+            }
+        }
+    } else if game_state == .Paused {
+        if raylib.IsKeyPressed(.ESCAPE) || raylib.IsKeyPressed(.C) do game_state = .Playing
+        if raylib.IsKeyPressed(.M) {
+            reset_session();
+            game_state = .Main_Menu
+            session_game_data.intro_fade_timer = INTRO_FADE_DURATION
+        }
+        if raylib.IsKeyPressed(.Q) do raylib.CloseWindow()
     }
 }
 
@@ -497,6 +536,130 @@ draw_game :: proc() {
 
     screen_width: f32 = f32(raylib.GetScreenWidth())
     screen_height: f32 = f32(raylib.GetScreenHeight())
+
+    if game_state == .Choosing_Keybinds {
+        // -------------------------------------------------------------
+        // VARIÁVEIS DE LAYOUT (Foco em design Ultra-Compacto)
+        // -------------------------------------------------------------
+        card_width   := screen_width * 0.19  // Bem mais estreito para abraçar o formato das teclas
+        card_height  := screen_height * 0.42 // Encurtado para eliminar vazios verticais
+        card_spacing := screen_width * 0.06  // Aumentado o espaçamento entre cards para equilibrar a tela
+        
+        card1_x := screen_width / 2 - card_width - card_spacing / 2
+        card2_x := screen_width / 2 + card_spacing / 2
+        card_y  := screen_height / 2 - card_height / 2
+
+        key_icon_size: f32 = 45.0 
+        key_gap: f32 = 6.0
+        
+        // Centros horizontais dos cartões para alinhamento absoluto dos blocos
+        key_center_x1 := card1_x + card_width / 2
+        key_center_x2 := card2_x + card_width / 2
+
+        text_font_size_card_title: i32 = 35
+        text_font_size_section: i32    = 16
+
+        // Cabeçalho da Tela Centralizado
+        draw_centered_text("ESCOLHA SEU ESQUEMA DE CONTROLE", i32(card_y - 160), 35, raylib.WHITE)
+        draw_centered_text("Selecione o preset ideal para o seu estilo de jogo:", i32(card_y - 95), 21, raylib.LIGHTGRAY)
+
+        // =================================================================
+        // CARD 1: MOVIMENTO EM WASD / SKILLS NAS SETAS
+        // =================================================================
+        card1_rec := raylib.Rectangle{card1_x, card_y, card_width, card_height}
+        card1_color := raylib.Fade(raylib.DARKGRAY, 0.4)
+        card1_border_color := raylib.DARKGRAY
+
+        if selected_keybind_option == int(KeybindScheme.MOVE_IN_WASD_SKILLS_IN_ARROWS) {
+            card1_color = raylib.Fade(raylib.BLUE, 0.15)
+            card1_border_color = raylib.BLUE
+        }
+        raylib.DrawRectangleRounded(card1_rec, 0.08, 8, card1_color)
+        raylib.DrawRectangleRoundedLinesEx(card1_rec, 0.08, 8, 2.5, card1_border_color)
+
+        // Título Principal - Preset A
+        title1_w := raylib.MeasureText(fmt.ctprintf("PRESET A"), text_font_size_card_title)
+        raylib.DrawText(fmt.ctprintf("PRESET A"), i32(key_center_x1 - f32(title1_w)/2), i32(card_y + card_height * 0.05), text_font_size_card_title, raylib.WHITE)
+
+        // --- SUB-SEÇÃO 1: MOVIMENTO (WASD) ---
+        move_sec_y1 := card_y + card_height * 0.27
+        txt_move1_w := raylib.MeasureText(fmt.ctprintf("MOVIMENTO"), text_font_size_section)
+        raylib.DrawText(fmt.ctprintf("MOVIMENTO"), i32(key_center_x1 - f32(txt_move1_w)/2), i32(move_sec_y1), text_font_size_section, raylib.SKYBLUE)
+
+        // Grid WASD aproximado do texto (distância reduzida de 42 para 35)
+        w_key_y1 := move_sec_y1 + 52
+        draw_keyboard_icon(player.key_w_texture, {key_center_x1, w_key_y1}, key_icon_size, raylib.WHITE)
+        draw_keyboard_icon(player.key_a_texture, {key_center_x1 - (key_icon_size + key_gap), w_key_y1 + (key_icon_size + key_gap)}, key_icon_size, raylib.WHITE)
+        draw_keyboard_icon(player.key_s_texture, {key_center_x1, w_key_y1 + (key_icon_size + key_gap)}, key_icon_size, raylib.WHITE)
+        draw_keyboard_icon(player.key_d_texture, {key_center_x1 + (key_icon_size + key_gap), w_key_y1 + (key_icon_size + key_gap)}, key_icon_size, raylib.WHITE)
+
+        // --- SUB-SEÇÃO 2: HABILIDADES (SETAS) ---
+        // Puxado significativamente para cima (fator 0.58 virou 0.52) para esmagar o espaço vazio central
+        skill_sec_y1 := card_y + card_height * 0.58
+        txt_skill1_w := raylib.MeasureText(fmt.ctprintf("HABILIDADES"), text_font_size_section)
+        raylib.DrawText(fmt.ctprintf("HABILIDADES"), i32(key_center_x1 - f32(txt_skill1_w)/2), i32(skill_sec_y1), text_font_size_section, raylib.GOLD)
+
+        // Grid Setas aproximado do texto (distância de 35)
+        up_key_y1 := skill_sec_y1 + 52
+        draw_keyboard_icon(player.key_up_texture, {key_center_x1, up_key_y1}, key_icon_size, raylib.WHITE)
+        draw_keyboard_icon(player.key_left_texture, {key_center_x1 - (key_icon_size + key_gap), up_key_y1 + (key_icon_size + key_gap)}, key_icon_size, raylib.WHITE)
+        draw_keyboard_icon(player.key_down_texture, {key_center_x1, up_key_y1 + (key_icon_size + key_gap)}, key_icon_size, raylib.WHITE)
+        draw_keyboard_icon(player.key_right_texture, {key_center_x1 + (key_icon_size + key_gap), up_key_y1 + (key_icon_size + key_gap)}, key_icon_size, raylib.WHITE)
+
+
+        // =================================================================
+        // CARD 2: MOVIMENTO NAS SETAS / SKILLS EM QWER
+        // =================================================================
+        card2_rec := raylib.Rectangle{card2_x, card_y, card_width, card_height}
+        card2_color := raylib.Fade(raylib.DARKGRAY, 0.4)
+        card2_border_color := raylib.DARKGRAY
+
+        if selected_keybind_option == int(KeybindScheme.MOVE_IN_ARROWS_SKIILS_IN_WASD) {
+            card2_color = raylib.Fade(raylib.BLUE, 0.15)
+            card2_border_color = raylib.BLUE
+        }
+        raylib.DrawRectangleRounded(card2_rec, 0.08, 8, card2_color)
+        raylib.DrawRectangleRoundedLinesEx(card2_rec, 0.08, 8, 2.5, card2_border_color)
+
+        // Título Principal - Preset B
+        title2_w := raylib.MeasureText(fmt.ctprintf("PRESET B"), text_font_size_card_title)
+        raylib.DrawText(fmt.ctprintf("PRESET B"), i32(key_center_x2 - f32(title2_w)/2), i32(card_y + card_height * 0.05), text_font_size_card_title, raylib.WHITE)
+
+        // --- SUB-SEÇÃO 1: MOVIMENTO (SETAS) ---
+        move_sec_y2 := card_y + card_height * 0.25
+        txt_move2_w := raylib.MeasureText(fmt.ctprintf("MOVIMENTO"), text_font_size_section)
+        raylib.DrawText(fmt.ctprintf("MOVIMENTO"), i32(key_center_x2 - f32(txt_move2_w)/2), i32(move_sec_y2), text_font_size_section, raylib.SKYBLUE)
+
+        // Grid Setas aproximado do texto (distância de 28)
+        up_key_y2 := move_sec_y2 + 52
+        draw_keyboard_icon(player.key_up_texture, {key_center_x2, up_key_y2}, key_icon_size, raylib.WHITE)
+        draw_keyboard_icon(player.key_left_texture, {key_center_x2 - (key_icon_size + key_gap), up_key_y2 + (key_icon_size + key_gap)}, key_icon_size, raylib.WHITE)
+        draw_keyboard_icon(player.key_down_texture, {key_center_x2, up_key_y2 + (key_icon_size + key_gap)}, key_icon_size, raylib.WHITE)
+        draw_keyboard_icon(player.key_right_texture, {key_center_x2 + (key_icon_size + key_gap), up_key_y2 + (key_icon_size + key_gap)}, key_icon_size, raylib.WHITE)
+
+        // --- SUB-SEÇÃO 2: HABILIDADES (QWER) ---
+        // Puxado na mesma altura milimétrica do Card 1
+        skill_sec_y2 := card_y + card_height * 0.58
+        txt_skill2_w := raylib.MeasureText(fmt.ctprintf("HABILIDADES"), text_font_size_section)
+        raylib.DrawText(fmt.ctprintf("HABILIDADES"), i32(key_center_x2 - f32(txt_skill2_w)/2), i32(skill_sec_y2), text_font_size_section, raylib.GOLD)
+
+        // Linha Q W E R (Aproximada e perfeitamente centrada no novo card fino)
+        q_key_y2 := skill_sec_y2 + 52 
+        row_width := (4.0 * key_icon_size) + (3.0 * key_gap)
+        start_x2  := key_center_x2 - row_width / 2
+
+        draw_keyboard_icon(player.key_q_texture, {start_x2 + key_icon_size/2, q_key_y2}, key_icon_size, raylib.WHITE)
+        draw_keyboard_icon(player.key_w_texture, {start_x2 + key_icon_size/2 + (key_icon_size + key_gap), q_key_y2}, key_icon_size, raylib.WHITE)
+        draw_keyboard_icon(player.key_e_texture, {start_x2 + key_icon_size/2 + 2.0 * (key_icon_size + key_gap), q_key_y2}, key_icon_size, raylib.WHITE)
+        draw_keyboard_icon(player.key_r_texture, {start_x2 + key_icon_size/2 + 3.0 * (key_icon_size + key_gap), q_key_y2}, key_icon_size, raylib.WHITE)
+
+        // -------------------------------------------------------------
+        // RODAPÉ INFORMATIVO
+        // -------------------------------------------------------------
+        draw_centered_text("Use ESQUERDA / DIREITA para alternar", i32(screen_height - 105), 22, raylib.RAYWHITE)
+        draw_centered_text("ENTER para confirmar", i32(screen_height - 65), 22, raylib.RAYWHITE)
+        
+    }
 
     // Draw Grass Tiles
     if game_state == .Playing {
@@ -1020,9 +1183,17 @@ deinit_game :: proc() {
     raylib.UnloadTexture(player.shield_texture)
     raylib.UnloadTexture(player.skill_icons_atlas_texture)
     raylib.UnloadTexture(player.frame_texture)
-    raylib.UnloadTexture(player.key_e_texture)
     raylib.UnloadTexture(player.key_q_texture)
+    raylib.UnloadTexture(player.key_w_texture)
+    raylib.UnloadTexture(player.key_e_texture)
+    raylib.UnloadTexture(player.key_r_texture)
+    raylib.UnloadTexture(player.key_a_texture)
+    raylib.UnloadTexture(player.key_s_texture)
+    raylib.UnloadTexture(player.key_d_texture)
     raylib.UnloadTexture(player.key_up_texture)
+    raylib.UnloadTexture(player.key_right_texture)
+    raylib.UnloadTexture(player.key_down_texture)
+    raylib.UnloadTexture(player.key_left_texture)
     raylib.UnloadTexture(session_game_data.main_menu_background)
     raylib.UnloadTexture(session_game_data.enemy_texture)
     raylib.UnloadTexture(session_game_data.floor_texture)
@@ -1042,4 +1213,24 @@ draw_centered_text :: proc(text: string, y: i32, size: i32, color: raylib.Color)
     width := raylib.MeasureText(c_str, size)
     screen_w := raylib.GetScreenWidth()
     raylib.DrawText(c_str, screen_w / 2 - width / 2, y, size, color)
+}
+
+draw_keyboard_icon :: proc(key_texture: raylib.Texture2D, pos: raylib.Vector2, size: f32, color: raylib.Color) {
+    source_rec := raylib.Rectangle {
+        x = 0,
+        y = 0,
+        width = f32(key_texture.width),
+        height = f32(key_texture.height),
+    }
+
+    dest_rec := raylib.Rectangle {
+        x = pos.x,
+        y = pos.y,
+        width = size,
+        height = size,
+    }
+
+    origin := raylib.Vector2{ size / 2, size / 2 }
+
+    raylib.DrawTexturePro(key_texture, source_rec, dest_rec, origin, 0, color)
 }
