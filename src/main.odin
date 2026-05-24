@@ -21,6 +21,10 @@ main :: proc() {
 
     if !raylib.IsWindowReady() do return
 
+    icon_image := raylib.LoadImage("icon.png")
+    raylib.SetWindowIcon(icon_image)
+    raylib.UnloadImage(icon_image)
+
     // if !raylib.IsWindowFullscreen() do raylib.ToggleFullscreen()
 
     raylib.HideCursor()
