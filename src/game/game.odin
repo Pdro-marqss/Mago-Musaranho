@@ -118,8 +118,8 @@ SHIELD_COOLDOWN :: 10.0
 
 // Reset sessionData 
 reset_session :: proc() {
-    screen_width := f32(raylib.GetScreenWidth())
-    screen_height := f32(raylib.GetScreenHeight())
+    screen_width: f32 = f32(1920.0)
+    screen_height: f32 = f32(1080.0)
 
     Session_Game_Data.score = 0
     Session_Game_Data.game_time = 0
@@ -140,8 +140,8 @@ reset_session :: proc() {
 
 Init_Game :: proc() {
     // Screen size values
-    screen_width: f32 = f32(raylib.GetScreenWidth())
-    screen_height: f32 = f32(raylib.GetScreenHeight())
+    screen_width: f32 = f32(1920.0)
+    screen_height: f32 = f32(1080.0)
 
     // GameState
     game_state = .Main_Menu
@@ -283,8 +283,8 @@ Update_Game :: proc(dt: f32) {
             game_state = .Playing
         }
     } else if game_state == .Playing {
-        screen_width: f32 = f32(raylib.GetScreenWidth())
-        screen_height: f32 = f32(raylib.GetScreenHeight())
+        screen_width: f32 = 1920.0
+        screen_height: f32 = 1080.0
     
         if raylib.IsKeyPressed(.ESCAPE) do game_state = .Paused
 
@@ -533,11 +533,10 @@ Update_Game :: proc(dt: f32) {
 
 
 Draw_Game :: proc() {
-    raylib.BeginDrawing()
     raylib.ClearBackground(raylib.BLACK)
 
-    screen_width: f32 = f32(raylib.GetScreenWidth())
-    screen_height: f32 = f32(raylib.GetScreenHeight())
+    screen_width: f32 = 1920.0
+    screen_height: f32 = 1080.0
 
     if game_state == .Choosing_Keybinds {
         // -------------------------------------------------------------
@@ -853,8 +852,8 @@ Draw_Game :: proc() {
             base_size: f32 = 90.0  // Aumentado de 64 para 90 para maior visibilidade
             margem_moldura: f32 = 12.0
             
-            hud_x := f32(raylib.GetScreenWidth()) / 2 - (base_size / 2)
-            hud_y := f32(raylib.GetScreenHeight()) - 120 // Um pouco mais alto por ser maior
+            hud_x := screen_width / 2 - (base_size / 2)
+            hud_y := screen_height - 120 // Um pouco mais alto por ser maior
 
             // 1. Ícone
             dest_rect := raylib.Rectangle{ hud_x, hud_y, base_size, base_size }
@@ -862,9 +861,9 @@ Draw_Game :: proc() {
 
             // 2. Máscara de Cooldown (Sombra)
             if player.shield_cooldown > 0 {
-                percentage := player.shield_cooldown / 8.0 
+                percentage := player.shield_cooldown / SHIELD_COOLDOWN 
                 mask_rect := raylib.Rectangle{ hud_x, hud_y, base_size, base_size * percentage }
-                raylib.DrawRectangleRec(mask_rect, raylib.Fade(raylib.BLACK, 0.7))
+                raylib.DrawRectangleRec(mask_rect, raylib.Fade(raylib.BLACK, 0.9))
             }
 
             // 3. Moldura
@@ -970,7 +969,7 @@ Draw_Game :: proc() {
             raylib.DrawText(fmt.ctprintf("Tempo: %.1fs", Session_Game_Data.game_time), 30, 90, 40, raylib.RAYWHITE)
             raylib.DrawText(fmt.ctprintf("Mortes: %d", Session_Game_Data.deaths), 30, 140, 40, raylib.RED)
             
-            raylib.DrawFPS(raylib.GetScreenWidth() - 120, 30)
+            raylib.DrawFPS(i32(screen_width) - 120, 30)
         }
         
     }
@@ -1108,8 +1107,6 @@ Draw_Game :: proc() {
             }
         }
     }
-    
-    raylib.EndDrawing()
 }
 
 
