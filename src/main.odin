@@ -45,6 +45,7 @@ main :: proc() {
         asset_check_timer += dt
         if asset_check_timer >= 0.5 {
             engine.Update_Watched_Texture(&game.Session_Game_Data.circle_texture)
+            engine.Update_Watched_Texture(&game.Player_Data.slow_time_texture)
 
             asset_check_timer = 0.0
         }
