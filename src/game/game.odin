@@ -624,8 +624,8 @@ Draw_Game :: proc() {
         text_font_size_section: i32    = 16
 
         // Cabeçalho da Tela Centralizado
-        draw_centered_text("ESCOLHA SEU ESQUEMA DE CONTROLE", i32(card_y - 160), 35, raylib.WHITE)
-        draw_centered_text("Selecione o preset ideal para o seu estilo de jogo:", i32(card_y - 95), 21, raylib.LIGHTGRAY)
+        draw_centered_text("ESCOLHA SEU ESQUEMA DE CONTROLE", i32(card_y - 160), 35, raylib.WHITE, i32(screen_width))
+        draw_centered_text("Selecione o preset ideal para o seu estilo de jogo:", i32(card_y - 95), 21, raylib.LIGHTGRAY, i32(screen_width))
 
         // =================================================================
         // CARD 1: MOVIMENTO EM WASD / SKILLS NAS SETAS
@@ -720,8 +720,8 @@ Draw_Game :: proc() {
         // -------------------------------------------------------------
         // RODAPÉ INFORMATIVO
         // -------------------------------------------------------------
-        draw_centered_text("Use ESQUERDA / DIREITA para alternar", i32(screen_height - 105), 22, raylib.RAYWHITE)
-        draw_centered_text("ENTER para confirmar", i32(screen_height - 65), 22, raylib.RAYWHITE)
+        draw_centered_text("Use ESQUERDA / DIREITA para alternar", i32(screen_height - 105), 22, raylib.RAYWHITE, i32(screen_width))
+        draw_centered_text("ENTER para confirmar", i32(screen_height - 65), 22, raylib.RAYWHITE, i32(screen_width))
         
     }
 
@@ -1348,11 +1348,11 @@ Deinit_Game :: proc() {
 }
 
 // helpers
-draw_centered_text :: proc(text: string, y: i32, size: i32, color: raylib.Color) {
+draw_centered_text :: proc(text: string, y: i32, size: i32, color: raylib.Color, target_width: i32 = 1920) {
     c_str := fmt.ctprintf(text)
     width := raylib.MeasureText(c_str, size)
     screen_w := raylib.GetScreenWidth()
-    raylib.DrawText(c_str, screen_w / 2 - width / 2, y, size, color)
+    raylib.DrawText(c_str, target_width / 2 - width / 2, y, size, color)
 }
 
 draw_keyboard_icon :: proc(key_texture: raylib.Texture2D, pos: raylib.Vector2, size: f32, color: raylib.Color) {
