@@ -26,7 +26,7 @@ main :: proc() {
 
     if !raylib.IsWindowReady() do return
 
-    icon_image := raylib.LoadImage("icon.png")
+    icon_image := raylib.LoadImage("assets/icon.png")
     raylib.SetWindowIcon(icon_image)
     raylib.UnloadImage(icon_image)
 
